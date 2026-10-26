@@ -1,6 +1,7 @@
 {
   "Ch01.AccessControl/Secure/CustomerListReader.cs#funzione-corretto": [
-    "bool isStaff = isAdmin || isOperator;",
+    "bool isStaff = isAdmin ",
+    " isOperator;",
     "if (!isStaff)"
   ],
   "Ch01.AccessControl/Secure/OrderDetailReader.cs#idor-corretto": [
