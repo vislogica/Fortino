@@ -1,0 +1,57 @@
+@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+@inject UserStore UserStore
+
+@* Gli utenti di Fortino, riservati agli amministratori. Qui si disattiva un utente: è il primo
+   passo del caso 3.2 del Laboratorio (capitolo 3). *@
+
+<PageTitle>Utenti · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Utenti</MudText>
+
+<MudSimpleTable Dense="true" Outlined="true" Elevation="0">
+    <thead>
+        <tr><th>Nome</th><th>Nome utente</th><th>Ruolo</th><th>Stato</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var user in _users)
+        {
+            <tr>
+                <td>@user.DisplayName</td>
+                <td>@user.Username</td>
+                <td>@Labels.Role(user.Role)</td>
+                <td>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text"
+                             Color="@(user.IsActive ? Color.Success : Color.Default)">
+                        @(user.IsActive ? "Attivo" : "Disattivato")
+                    </MudChip>
+                </td>
+                <td style="text-align:right">
+                    @if (user.Id != _currentUserId)
+                    {
+                        <form method="post" action="@($"/users/{user.Id}/attivo")" class="fortino-menu-form">
+                            <AntiforgeryToken />
+                            <input type="hidden" name="IsActive" value="@(user.IsActive ? "false" : "true")" />
+                            <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Variant="Variant.Outlined"
+                                       Color="@(user.IsActive ? Color.Error : Color.Primary)">
+                                @(user.IsActive ? "Disattiva" : "Riattiva")
+                            </MudButton>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<AppUser> _users = [];
+    private int? _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentUserId = (await AuthState).User.GetUserId();
+        _users = await UserStore.GetAllAsync();
+    }
+}

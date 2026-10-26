@@ -38,12 +38,14 @@ public static class LabSetup
         // "Inizia la prova": si esce dall'applicazione, si ricorda caso e versione nel cookie
         // della prova e si va alla pagina di login, come un utente che arriva da fuori.
         // È un form con token antiforgery: un altro sito non può far partire una prova (né l'uscita).
-        app.MapPost("/lab/prova/inizia", async ([FromForm] StartTrialForm form, HttpContext http, LabRegistry registry) =>
+        app.MapPost("/lab/prova/inizia", async ([FromForm] StartTrialForm form, HttpContext http, LabRegistry registry,
+            IEnumerable<ILabStateReset> resets) =>
         {
             var labCase = registry.Find(form.Chapter, form.CaseSlug ?? "");
             if (labCase?.Trial is null) return Results.BadRequest();
             if (!Enum.TryParse<CodeVariant>(form.Variant, out var variant)) return Results.BadRequest();
 
+            foreach (var reset in resets) await reset.ResetAsync();
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             var trial = new ActiveTrial(labCase.Chapter, labCase.Slug, variant);
             http.Response.Cookies.Append(ActiveTrial.CookieName, trial.ToCookieValue(), new CookieOptions
@@ -58,9 +60,11 @@ public static class LabSetup
 
         // Fine della prova: si cancella il cookie, si esce e si torna alla pagina del capitolo.
         // Con Done=true la pagina del capitolo segna la prova come fatta.
-        app.MapPost("/lab/prova/fine", async ([FromForm] EndTrialForm form, HttpContext http) =>
+        app.MapPost("/lab/prova/fine", async ([FromForm] EndTrialForm form, HttpContext http,
+            IEnumerable<ILabStateReset> resets) =>
         {
             var trial = ActiveTrial.Parse(http.Request.Cookies[ActiveTrial.CookieName]);
+            foreach (var reset in resets) await reset.ResetAsync();
             http.Response.Cookies.Delete(ActiveTrial.CookieName);
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             if (trial is null) return Results.LocalRedirect("/lab");

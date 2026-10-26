@@ -31,9 +31,16 @@
             </MudAlert>
         }
 
-        @if (Error is not null)
+        @* Il testo è fisso: dall'indirizzo arriva solo un codice (capitolo 15). *@
+        @if (Error == "2")
         {
-            @* Il testo è fisso: dall'indirizzo arriva solo un codice (capitolo 15). *@
+            @* Caso 3.1: il nome utente è bloccato dopo troppi errori. *@
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">
+                Troppi tentativi sbagliati con questo nome utente. Riprova tra 15 minuti.
+            </MudAlert>
+        }
+        else if (Error is not null)
+        {
             <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">Nome utente o password non corretti.</MudAlert>
         }
 

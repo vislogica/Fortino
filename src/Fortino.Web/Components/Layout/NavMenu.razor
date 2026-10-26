@@ -14,6 +14,9 @@
         <MudNavLink Href="/invoices" Icon="@Icons.Material.Outlined.ReceiptLong">Fatture</MudNavLink>
         <MudNavLink Href="/coupons" Icon="@Icons.Material.Outlined.LocalOffer">Buoni sconto</MudNavLink>
         <MudNavLink Href="/documents" Icon="@Icons.Material.Outlined.Description">Documenti</MudNavLink>
+        <AuthorizeView Roles="Admin" Context="admin">
+            <MudNavLink Href="/users" Icon="@Icons.Material.Outlined.ManageAccounts">Utenti</MudNavLink>
+        </AuthorizeView>
     </AuthorizeView>
     <AuthorizeView Policy="@Policies.Customer">
         <MudText Typo="Typo.overline" Class="fortino-nav-group">Portale clienti</MudText>

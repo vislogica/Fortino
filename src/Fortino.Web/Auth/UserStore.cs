@@ -60,4 +60,17 @@ public sealed class UserStore(DbConnectionFactory factory)
         await using var db = await factory.OpenAsync();
         return (await db.QueryAsync<AppUser>("SELECT * FROM AppUser WHERE IsActive = 1 ORDER BY Role, DisplayName;")).AsList();
     }
+
+    // Tutti gli utenti, attivi e disattivati: li vede l'amministratore nella pagina /users.
+    public async Task<IReadOnlyList<AppUser>> GetAllAsync()
+    {
+        await using var db = await factory.OpenAsync();
+        return (await db.QueryAsync<AppUser>("SELECT * FROM AppUser ORDER BY Role, DisplayName;")).AsList();
+    }
+
+    public async Task SetActiveAsync(int id, bool isActive)
+    {
+        await using var db = await factory.OpenAsync();
+        await db.ExecuteAsync("UPDATE AppUser SET IsActive = @isActive WHERE Id = @id;", new { id, isActive });
+    }
 }

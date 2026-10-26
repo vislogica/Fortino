@@ -28,21 +28,21 @@
   "Ch02.Injection/Vulnerable/OrderSearchReader.cs#sql-injection-vulnerabile": [
     "$\" WHERE o.CustomerId = @customerId AND o.Number LIKE '%{term}%';\";"
   ],
-  "Ch03.Authentication/Secure/AuthApi.cs#forza-bruta-corretto": [
-    "bool isBlocked = throttle.IsBlocked(request.Username);",
-    "throttle.RecordFailure(request.Username);",
-    "throttle.Reset(request.Username);"
+  "Ch03.Authentication/Secure/LoginChecker.cs#forza-bruta-corretto": [
+    "bool isBlocked = throttle.IsBlocked(username);",
+    "throttle.RecordFailure(username);",
+    "throttle.Reset(username);"
   ],
-  "Ch03.Authentication/Secure/AuthApi.cs#sessione-corretto": [
+  "Ch03.Authentication/Secure/SessionValidator.cs#sessione-corretto": [
     "AppUser? currentUser = await users.FindByIdAsync(userId.Value);",
     "if (!currentUser.IsActive)"
   ],
-  "Ch03.Authentication/Vulnerable/AuthApi.cs#forza-bruta-vulnerabile": [
-    "passwordIsCorrect = PasswordCheck.Verify(user, request.Password);",
-    "return Results.Unauthorized();"
+  "Ch03.Authentication/Vulnerable/LoginChecker.cs#forza-bruta-vulnerabile": [
+    "bool passwordIsCorrect = AuthEndpoints.VerifyPassword(user, password);",
+    "return LoginResult.WrongPassword;"
   ],
-  "Ch03.Authentication/Vulnerable/AuthApi.cs#sessione-vulnerabile": [
-    "string displayName = user.GetDisplayName();"
+  "Ch03.Authentication/Vulnerable/SessionValidator.cs#sessione-vulnerabile": [
+    "bool isValid = true;"
   ],
   "Ch04.SecurityHeaders/Secure/HeadersApi.cs#clickjacking-corretto": [
     "http.Response.Headers[\"X-Frame-Options\"] = \"DENY\";",

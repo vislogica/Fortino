@@ -26,6 +26,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        // A ogni richiesta si controlla che la sessione valga ancora (capitolo 3, caso 3.2).
+        options.Events.OnValidatePrincipal = SessionCheck.ValidateAsync;
     });
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Policies.Staff, p => p.RequireRole("Admin", "Operator"))
@@ -62,6 +64,7 @@ app.UseAntiforgery();
 app.MapStaticAssets().AllowAnonymous();
 app.MapAuthEndpoints();
 app.MapPortalEndpoints();
+app.MapUserAdminEndpoints();
 app.MapFortinoLab();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode()
     // Il canale del circuito interattivo (/_blazor) deve aprirsi anche per chi non è entrato:

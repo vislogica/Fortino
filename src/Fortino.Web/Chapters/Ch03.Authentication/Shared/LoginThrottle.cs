@@ -2,8 +2,6 @@ using System.Collections.Concurrent;
 
 namespace Fortino.Web.Chapters.Ch03;
 
-public sealed record LoginCheckRequest(string Username, string Password);
-
 #region libro: contatore-tentativi
 // Conta i tentativi di accesso falliti per utente e blocca temporaneamente dopo troppi errori.
 // Lo usa solo la versione corretta del caso 3.1.
