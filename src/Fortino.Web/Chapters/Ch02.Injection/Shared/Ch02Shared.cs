@@ -4,11 +4,17 @@ using Fortino.Web.Data;
 
 namespace Fortino.Web.Chapters.Ch02;
 
-// Dati comuni ai due casi del capitolo 2.
-public sealed record CustomerHit(string Name, string VatNumber);
-
+// Dati e letture comuni ai due casi del capitolo 2.
 public static class Ch02Shared
 {
+    // L'inizio della query degli ordini: le due versioni del caso 2.1 aggiungono la condizione WHERE.
+    public const string OrderSelect =
+        """
+        SELECT o.Id, o.Number, o.CustomerId, c.Name AS CustomerName, o.OrderDate, o.Status, o.Notes,
+               COALESCE((SELECT SUM(l.Quantity * l.UnitPrice) FROM OrderLine l WHERE l.OrderId = o.Id), 0) AS Total
+          FROM SalesOrder o JOIN Customer c ON c.Id = o.CustomerId
+        """;
+
     // La nota di un ordine: un testo scritto dal cliente, quindi non fidato.
     public static async Task<string> OrderNoteAsync(DbConnectionFactory factory, int orderId)
     {

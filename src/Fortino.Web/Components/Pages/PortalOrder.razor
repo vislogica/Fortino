@@ -38,6 +38,26 @@ else
         </MudSimpleTable>
     </MudPaper>
 
+    @* Finché l'ordine è in bozza, il cliente può scrivere una nota per Carta & Co. Nel caso 2.2
+       del Laboratorio la nota contiene un comando per il browser di chi la legge. *@
+    @if (_order.Status == OrderStatus.Draft)
+    {
+        @if (NoteResult == "salvata")
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">Nota salvata.</MudAlert>
+        }
+        else if (NoteResult == "rifiutata")
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">La nota non è stata salvata: l'ordine non è tuo o non è più in bozza.</MudAlert>
+        }
+        <form method="post" action="@($"/portal/orders/{_order.Id}/nota")" class="mb-4" style="max-width:640px">
+            <AntiforgeryToken />
+            <label for="notes" class="mud-typography-body2">Nota per Carta &amp; Co.</label>
+            <textarea class="fortino-input" id="notes" name="Notes" rows="3">@_order.Notes</textarea>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">Salva la nota</MudButton>
+        </form>
+    }
+
     <MudSimpleTable Dense="true" Outlined="true" Elevation="0">
         <thead>
             <tr><th>Articolo</th><th style="text-align:right">Quantità</th><th style="text-align:right">Prezzo</th><th style="text-align:right">Importo</th></tr>
@@ -62,6 +82,9 @@ else
 
 @code {
     [Parameter] public int OrderId { get; set; }
+
+    // Esito del salvataggio della nota, dopo il form: "salvata" o "rifiutata".
+    [SupplyParameterFromQuery(Name = "nota")] public string? NoteResult { get; set; }
 
     [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
     [CascadingParameter] private LabTrialState Trial { get; set; } = default!;

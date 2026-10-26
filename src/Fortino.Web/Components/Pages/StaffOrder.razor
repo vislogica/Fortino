@@ -1,0 +1,96 @@
+@page "/orders/{OrderId:int}"
+@attribute [Authorize(Policy = Policies.Staff)]
+@inject FortinoQueries Queries
+@inject Fortino.Web.Chapters.Ch02.Vulnerable.OrderNoteRenderer VulnerableNote
+@inject Fortino.Web.Chapters.Ch02.Secure.OrderNoteRenderer SecureNote
+
+@* Il dettaglio di un ordine per lo staff. La nota l'ha scritta il cliente nel portale:
+   è qui che si prova il caso 2.2 del Laboratorio (capitolo 2). *@
+
+<PageTitle>Ordine · Fortino</PageTitle>
+<MudBreadcrumbs Items="_breadcrumbs" Class="px-0 pt-0" />
+
+@if (!_loaded)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_order is null)
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+        <b>Ordine non trovato.</b> Torna all'elenco degli ordini.
+    </MudAlert>
+}
+else
+{
+    var (statusText, statusColor) = Labels.Order(_order.Status);
+    <div class="d-flex align-center mb-4">
+        <MudText Typo="Typo.h5">Ordine @_order.Number</MudText>
+        <MudChip T="string" Size="Size.Small" Color="statusColor" Variant="Variant.Text" Class="ml-3">@statusText</MudChip>
+    </div>
+
+    <MudPaper Outlined="true" Class="pa-4 mb-4">
+        <MudSimpleTable Dense="true" Elevation="0">
+            <tbody>
+                <tr><td style="width:160px"><b>Cliente</b></td><td>@_order.CustomerName</td></tr>
+                <tr><td><b>Data</b></td><td>@_order.OrderDate.ToString("dd/MM/yyyy")</td></tr>
+                <tr><td><b>Note</b></td><td>@_note</td></tr>
+            </tbody>
+        </MudSimpleTable>
+    </MudPaper>
+
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0">
+        <thead>
+            <tr><th>Articolo</th><th style="text-align:right">Quantità</th><th style="text-align:right">Prezzo</th><th style="text-align:right">Importo</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var line in _lines)
+            {
+                <tr>
+                    <td>@line.Description</td>
+                    <td style="text-align:right">@line.Quantity</td>
+                    <td style="text-align:right">@Labels.Money(line.UnitPrice)</td>
+                    <td style="text-align:right">@Labels.Money(line.Quantity * line.UnitPrice)</td>
+                </tr>
+            }
+            <tr>
+                <td colspan="3" style="text-align:right"><b>Totale</b></td>
+                <td style="text-align:right"><b>@Labels.Money(_order.Total)</b></td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+}
+
+@code {
+    [Parameter] public int OrderId { get; set; }
+
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
+
+    private Order? _order;
+    private IReadOnlyList<OrderLine> _lines = [];
+    private MarkupString _note;
+    private bool _loaded;
+    private List<BreadcrumbItem> _breadcrumbs = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _breadcrumbs = [new("Ordini", "/orders"), new("Dettaglio ordine", null, disabled: true)];
+        _order = await Queries.GetOrderAsync(OrderId);
+        if (_order is not null)
+        {
+            _lines = await Queries.GetOrderLinesAsync(OrderId);
+
+            // Il Laboratorio decide quale versione del codice prepara la nota (caso 2.2):
+            // fuori da una prova è sempre quella corretta.
+            CodeVariant variant = Trial.VariantFor(2, "xss");
+            if (variant == CodeVariant.Vulnerable)
+            {
+                _note = await VulnerableNote.RenderAsync(OrderId);
+            }
+            else
+            {
+                _note = await SecureNote.RenderAsync(OrderId);
+            }
+        }
+        _loaded = true;
+    }
+}

@@ -1,42 +1,53 @@
-using Dapper;
-using Fortino.Web.Data;
 using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch02.Scenarios;
 
-// Caso 2.2: una nota d'ordine con uno script finisce nell'HTML senza codifica (XSS).
+// Caso 2.2: un cliente nasconde un comando nella nota di un ordine; la pagina dello staff la
+// mette nell'HTML senza codificarla e il browser dell'operatore lo esegue (XSS).
 public sealed class XssCase : Ch02Case
 {
     public override string Slug => "xss";
-    public override IReadOnlyList<string> LabUsers => ["anna"];
     public override string Title => "Script nella nota dell'ordine";
     public override string Summary =>
-        "Una nota d'ordine con uno script viene inserita nell'HTML senza codifica: il browser di chi apre la pagina lo eseguirebbe. La versione corretta codifica la nota.";
+        "Ottica Lumen scrive nella nota di un ordine un comando per il browser. Poi l'operatore Mario Bianchi apre quell'ordine.";
     public override string BookReference => "capitolo 2, caso 2.2";
-    public override CodeLocation VulnerableCode => new("Ch02.Injection/Vulnerable/InjectionApi.cs", "xss-vulnerabile");
-    public override CodeLocation SecureCode => new("Ch02.Injection/Secure/InjectionApi.cs", "xss-corretto");
+    public override CodeLocation VulnerableCode => new("Ch02.Injection/Vulnerable/OrderNoteRenderer.cs", "xss-vulnerabile");
+    public override CodeLocation SecureCode => new("Ch02.Injection/Secure/OrderNoteRenderer.cs", "xss-corretto");
 
-    private const int OrderId = 5;
-    private const string Script = "<script>document.title='violato'</script>";
+    // I passi sono gli stessi nelle due versioni: cambia solo quello che risponde il server.
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel portale clienti, nella pagina «I miei ordini». Clicca sul numero `ORD-2026-0105`: è una bozza, e sotto i dati dell'ordine c'è la casella «Nota per Carta & Co.».",
+        "Nella casella scrivi `<img src=x onerror=\"alert('XSS')\">` e premi «Salva la nota». Nel portale la nota compare come testo.",
+        "Ora diventa l'operatore che apre l'ordine: dal menu in alto a destra, sotto «Entra come…», scegli «Mario Bianchi · Operatore».",
+        "Nel menu a sinistra apri «Ordini» e clicca sul numero `ORD-2026-0105`.",
+    ];
 
-    public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
-    {
-        await context.ResetDataAsync(run, ct);
-
-        await using (var db = await context.Services.GetRequiredService<DbConnectionFactory>().OpenAsync(ct))
-            await db.ExecuteAsync("UPDATE SalesOrder SET Notes = @Script WHERE Id = @OrderId;", new { Script, OrderId });
-        run.Log($"Il cliente ha scritto nella nota dell'ordine {OrderId} uno script: {Script}.");
-
-        var client = await context.Clients.CreateAsync(LabUsers[0], ct);
-        run.Log("Un operatore apre la pagina che mostra la nota dell'ordine.");
-        using var response = await client.GetAsync($"{Api(variant)}/orders/{OrderId}/note-html", ct);
-        var html = await response.Content.ReadAsStringAsync(ct);
-        run.Log($"HTML prodotto dal server: {html}");
-
-        if (html.Contains("<script>", StringComparison.OrdinalIgnoreCase))
-            run.Succeeded("Lo script è finito nell'HTML così com'era: il browser dell'operatore lo eseguirebbe. " +
-                          "Da qui si rubano cookie di sessione o si compiono azioni al posto suo.");
-        else
-            run.Blocked("Lo script è stato codificato (&lt;script&gt;): resta testo visibile, non viene eseguito.");
-    }
+    public override ManualTrial Trial => new(
+        Username: "lumen",
+        StartPath: "/portal",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "Il browser apre una finestra con scritto «XSS». Il comando che Ottica Lumen ha nascosto nella nota è stato eseguito nel browser di Mario. Nella riga «Note» resta solo l'icona di un'immagine rotta.",
+            Proves: "La pagina dello staff ha messo la nota nell'HTML senza codificarla. Al posto di un avviso, il comando poteva far fare al browser di Mario quello che Mario può fare: leggere dati, approvare ordini, mandarli altrove.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch02.Injection/Vulnerable/OrderNoteRenderer.cs",
+                Line: "sulla riga del PASSO 3, `MarkupString markup = new MarkupString(html);`",
+                Watch:
+                [
+                    "`noteText` è il testo scritto da Ottica Lumen, con `<img` e `onerror`.",
+                    "`html` contiene la nota così com'è, dentro il `<div>`: per il browser è un pezzo di pagina.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "Nessuna finestra. Nella riga «Note» si legge il testo `<img src=x onerror=\"alert('XSS')\">`, così come l'ha scritto Ottica Lumen.",
+            Proves: "La nota è stata codificata prima di entrare nell'HTML: per il browser è testo da mostrare, non un comando da eseguire.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch02.Injection/Secure/OrderNoteRenderer.cs",
+                Line: "sulla riga del PASSO 3, `string html = $\"<div class=\\\"nota\\\">{safeNoteText}</div>\";`",
+                Watch:
+                [
+                    "`noteText` è il testo scritto da Ottica Lumen, con `<img` e `onerror`.",
+                    "`safeNoteText` comincia con `&lt;img`: i caratteri < e > sono diventati innocui.",
+                ])));
 }

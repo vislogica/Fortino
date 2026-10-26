@@ -61,6 +61,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets().AllowAnonymous();
 app.MapAuthEndpoints();
+app.MapPortalEndpoints();
 app.MapFortinoLab();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode()
     // Il canale del circuito interattivo (/_blazor) deve aprirsi anche per chi non è entrato:

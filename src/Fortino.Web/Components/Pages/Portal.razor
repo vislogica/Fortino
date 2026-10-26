@@ -1,27 +1,81 @@
 @page "/portal"
 @attribute [Authorize(Policy = Policies.Customer)]
 @inject FortinoQueries Queries
+@inject Fortino.Web.Chapters.Ch02.Vulnerable.OrderSearchReader VulnerableSearch
+@inject Fortino.Web.Chapters.Ch02.Secure.OrderSearchReader SecureSearch
+
+@* La pagina iniziale del portale clienti. La ricerca per numero d'ordine arriva nell'indirizzo
+   (/portal?cerca=...): è qui che si prova il caso 2.1 del Laboratorio (capitolo 2). *@
 
 <PageTitle>I miei ordini · Fortino</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">I miei ordini</MudText>
 
-<OrderGrid Items="_orders" DetailPath="/portal/orders" />
+@* Un form normale con method="get": il termine finisce nella barra degli indirizzi. *@
+<form method="get" action="/portal" class="d-flex align-end gap-2 mb-4" style="max-width:520px">
+    <div class="flex-grow-1">
+        <label for="cerca" class="mud-typography-body2">Cerca un ordine per numero</label>
+        <input class="fortino-input" id="cerca" name="cerca" value="@Cerca" autocomplete="off" />
+    </div>
+    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Cerca</MudButton>
+</form>
+
+@if (Cerca is not null)
+{
+    <div class="d-flex align-center mb-2">
+        <MudText Typo="Typo.subtitle1">Risultati per «@Cerca»</MudText>
+        <MudLink Href="/portal" Class="ml-4">Mostra tutti i miei ordini</MudLink>
+    </div>
+    @if (_orders.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Nessun ordine trovato.</MudAlert>
+    }
+    else
+    {
+        @* Nei risultati si mostra anche il cliente: nel caso 2.1 si vede di chi sono gli ordini. *@
+        <OrderGrid Items="_orders" ShowCustomer="true" DetailPath="/portal/orders" />
+    }
+}
+else
+{
+    <OrderGrid Items="_orders" DetailPath="/portal/orders" />
+}
 
 <MudText Typo="Typo.h6" Class="mt-8 mb-3">Le mie fatture</MudText>
 <InvoiceGrid Items="_invoices" />
 
 @code {
+    [SupplyParameterFromQuery(Name = "cerca")] public string? Cerca { get; set; }
+
     [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
 
     private IReadOnlyList<Order> _orders = [];
     private IReadOnlyList<Invoice> _invoices = [];
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
         // Il cliente si legge dall'utente collegato, mai dall'indirizzo della pagina.
-        var customerId = (await AuthState).User.GetCustomerId();
+        ClaimsPrincipal user = (await AuthState).User;
+        var customerId = user.GetCustomerId();
         if (customerId is null) return;
-        _orders = await Queries.GetOrdersForCustomerAsync(customerId.Value);
         _invoices = await Queries.GetInvoicesForCustomerAsync(customerId.Value);
+
+        if (Cerca is null)
+        {
+            _orders = await Queries.GetOrdersForCustomerAsync(customerId.Value);
+            return;
+        }
+
+        // Il Laboratorio decide quale versione del codice fa la ricerca (caso 2.1):
+        // fuori da una prova è sempre quella corretta.
+        CodeVariant variant = Trial.VariantFor(2, "sql-injection");
+        if (variant == CodeVariant.Vulnerable)
+        {
+            _orders = await VulnerableSearch.SearchAsync(Cerca, user);
+        }
+        else
+        {
+            _orders = await SecureSearch.SearchAsync(Cerca, user);
+        }
     }
 }

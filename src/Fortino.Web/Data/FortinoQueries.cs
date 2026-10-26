@@ -39,6 +39,20 @@ public sealed class FortinoQueries(DbConnectionFactory factory)
         return (await db.QueryAsync<Order>(OrderSelect + " ORDER BY o.OrderDate DESC;")).AsList();
     }
 
+    // Il dettaglio di un ordine per lo staff, che vede gli ordini di tutti i clienti.
+    public async Task<Order?> GetOrderAsync(int orderId)
+    {
+        await using var db = await factory.OpenAsync();
+        return await db.QuerySingleOrDefaultAsync<Order>(OrderSelect + " WHERE o.Id = @orderId;", new { orderId });
+    }
+
+    public async Task<IReadOnlyList<OrderLine>> GetOrderLinesAsync(int orderId)
+    {
+        await using var db = await factory.OpenAsync();
+        return (await db.QueryAsync<OrderLine>(
+            "SELECT * FROM OrderLine WHERE OrderId = @orderId ORDER BY Id;", new { orderId })).AsList();
+    }
+
     // Il portale clienti legge sempre filtrando per il cliente dell'utente collegato.
     public async Task<IReadOnlyList<Order>> GetOrdersForCustomerAsync(int customerId)
     {
@@ -46,6 +60,17 @@ public sealed class FortinoQueries(DbConnectionFactory factory)
         return (await db.QueryAsync<Order>(
             OrderSelect + " WHERE o.CustomerId = @customerId ORDER BY o.OrderDate DESC;",
             new { customerId })).AsList();
+    }
+
+    // Il cliente cambia la nota solo dei propri ordini, e solo finché sono in bozza.
+    // Restituisce false se l'ordine non è suo o non è più in bozza.
+    public async Task<bool> UpdateDraftOrderNoteAsync(int orderId, int customerId, string? notes)
+    {
+        await using var db = await factory.OpenAsync();
+        var changed = await db.ExecuteAsync(
+            "UPDATE SalesOrder SET Notes = @notes WHERE Id = @orderId AND CustomerId = @customerId AND Status = @draft;",
+            new { orderId, customerId, notes = string.IsNullOrWhiteSpace(notes) ? null : notes, draft = OrderStatus.Draft });
+        return changed == 1;
     }
 
     public async Task<IReadOnlyList<Invoice>> GetInvoicesAsync()
