@@ -1,0 +1,30 @@
+@page "/log"
+@inject InMemoryLogStore Store
+
+<PageTitle>Registro · Fortino</PageTitle>
+<div class="d-flex align-center mb-4">
+    <MudText Typo="Typo.h5">Registro</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" Size="Size.Small" StartIcon="@Icons.Material.Outlined.Refresh" OnClick="Load">Aggiorna</MudButton>
+</div>
+
+<MudDataGrid T="LogRecord" Items="_records" Dense="true" Hover="true" Elevation="0" Outlined="true">
+    <Columns>
+        <TemplateColumn Title="Ora">
+            <CellTemplate>@context.Item.At.ToString("HH:mm:ss")</CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.Level" Title="Livello" />
+        <PropertyColumn Property="x => x.Category" Title="Origine" />
+        <TemplateColumn Title="Messaggio">
+            <CellTemplate><pre class="fortino-log-line">@context.Item.Message</pre></CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<LogRecord> _records = [];
+
+    protected override void OnInitialized() => Load();
+
+    private void Load() => _records = Store.Snapshot();
+}

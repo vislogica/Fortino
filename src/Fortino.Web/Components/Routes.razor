@@ -1,0 +1,17 @@
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="ma-6">
+                    Questa pagina non è disponibile per il tuo ruolo. Usa "Entra come…" in alto a destra per cambiare utente.
+                </MudAlert>
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <MudText Typo="Typo.h5" Class="ma-6">Pagina non trovata.</MudText>
+        </LayoutView>
+    </NotFound>
+</Router>

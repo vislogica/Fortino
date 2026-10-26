@@ -1,0 +1,25 @@
+@page "/customers"
+@attribute [Authorize(Policy = Policies.Staff)]
+@inject FortinoQueries Queries
+
+<PageTitle>Clienti · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Clienti</MudText>
+
+<MudDataGrid T="Customer" Items="_items" Dense="true" Hover="true" Elevation="0" Outlined="true">
+    <Columns>
+        <PropertyColumn Property="x => x.Name" Title="Ragione sociale" />
+        <PropertyColumn Property="x => x.VatNumber" Title="Partita IVA" />
+        <PropertyColumn Property="x => x.Email" Title="Email" />
+        <PropertyColumn Property="x => x.Address" Title="Indirizzo" />
+        <PropertyColumn Property="x => x.Iban" Title="IBAN" />
+        <TemplateColumn Title="Fido">
+            <CellTemplate>@Labels.Money(context.Item.CreditLimit)</CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<Customer> _items = [];
+
+    protected override async Task OnInitializedAsync() => _items = await Queries.GetCustomersAsync();
+}

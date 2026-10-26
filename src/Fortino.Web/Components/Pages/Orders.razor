@@ -1,0 +1,14 @@
+@page "/orders"
+@attribute [Authorize(Policy = Policies.Staff)]
+@inject FortinoQueries Queries
+
+<PageTitle>Ordini · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Ordini</MudText>
+
+<OrderGrid Items="_items" ShowCustomer="true" />
+
+@code {
+    private IReadOnlyList<Order> _items = [];
+
+    protected override async Task OnInitializedAsync() => _items = await Queries.GetOrdersAsync();
+}

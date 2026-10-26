@@ -1,0 +1,56 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fortino.Web", "src\Fortino.Web\Fortino.Web.csproj", "{A13A5E80-350B-47CE-9053-D258D78A9272}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fortino.Tests", "tests\Fortino.Tests\Fortino.Tests.csproj", "{FDEC741C-BC27-4392-9925-FF8FC6AAF691}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Debug|x64.Build.0 = Debug|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Debug|x86.Build.0 = Debug|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Release|x64.ActiveCfg = Release|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Release|x64.Build.0 = Release|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Release|x86.ActiveCfg = Release|Any CPU
+		{A13A5E80-350B-47CE-9053-D258D78A9272}.Release|x86.Build.0 = Release|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Debug|x64.Build.0 = Debug|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Debug|x86.Build.0 = Debug|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Release|x64.ActiveCfg = Release|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Release|x64.Build.0 = Release|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Release|x86.ActiveCfg = Release|Any CPU
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A13A5E80-350B-47CE-9053-D258D78A9272} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{FDEC741C-BC27-4392-9925-FF8FC6AAF691} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+	EndGlobalSection
+EndGlobal

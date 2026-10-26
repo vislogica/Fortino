@@ -1,0 +1,64 @@
+@* Menu dell'utente: mostra chi è collegato e permette di cambiare utente al volo ("Entra come…").
+   Il cambio utente è un form con token antiforgery inviato a /lab/switch-user. *@
+@inject UserStore Users
+@inject NavigationManager Nav
+@inject IConfiguration Configuration
+
+<MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+    <ActivatorContent>
+        @* Il cambio utente vale per le prove a mano: le prove automatiche del Laboratorio entrano da sole. *@
+        <MudTooltip Text="Il cambio utente vale solo per le prove a mano. I pulsanti «Prova codice vulnerabile» e «Prova codice corretto» del Laboratorio entrano da soli con l'utente indicato nel caso."
+                    Disabled="@(!_allowSwitch)" Placement="Placement.Bottom" Arrow="true">
+            <MudButton Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" Class="fortino-user-chip"
+                       StartIcon="@Icons.Material.Outlined.AccountCircle" EndIcon="@Icons.Material.Filled.ArrowDropDown"
+                       OnClick="@((MouseEventArgs e) => context.ToggleAsync(e))">
+                @_displayName · @_role
+            </MudButton>
+        </MudTooltip>
+    </ActivatorContent>
+    <ChildContent>
+        @if (_allowSwitch)
+        {
+            <MudText Typo="Typo.overline" Class="px-4">Entra come…</MudText>
+            @foreach (var user in _users)
+            {
+                <form method="post" action="/lab/switch-user" class="fortino-menu-form">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="UserId" value="@user.Id" />
+                    <input type="hidden" name="ReturnUrl" value="@CurrentPath" />
+                    <button type="submit" class="fortino-menu-item @(user.Id == _userId ? "is-current" : "")">
+                        @user.DisplayName <span>· @Labels.Role(user.Role)</span>
+                    </button>
+                </form>
+            }
+            <MudDivider Class="my-1" />
+        }
+        <form method="post" action="/auth/logout" class="fortino-menu-form">
+            <AntiforgeryToken />
+            <button type="submit" class="fortino-menu-item">Esci</button>
+        </form>
+    </ChildContent>
+</MudMenu>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<AppUser> _users = [];
+    private string _displayName = "";
+    private string _role = "";
+    private int? _userId;
+    private bool _allowSwitch;
+
+    private string CurrentPath => "/" + Nav.ToBaseRelativePath(Nav.Uri);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+        _displayName = user.GetDisplayName();
+        _role = Labels.Role(user.FindFirstValue(ClaimTypes.Role));
+        _userId = user.GetUserId();
+        _allowSwitch = Configuration.GetValue<bool>("Lab:AllowUserSwitch");
+        if (_allowSwitch)
+            _users = await Users.GetActiveAsync();
+    }
+}

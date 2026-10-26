@@ -1,0 +1,53 @@
+@page "/mailbox"
+@inject FakeMailbox Mail
+
+<PageTitle>Posta finta · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-1">Posta finta</MudText>
+<MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">
+    Fortino non spedisce email vere: le salva qui, così puoi vedere cosa riceverebbe ogni utente.
+</MudText>
+
+@if (_messages.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Nessun messaggio.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Outlined="true">
+                <MudList T="MailMessage" @bind-SelectedValue="_selected" Dense="true">
+                    @foreach (var message in _messages)
+                    {
+                        <MudListItem Value="message">
+                            <MudText Typo="Typo.body2"><b>@message.Subject</b></MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">a: @message.Recipient · @message.SentAt.ToString("dd/MM HH:mm")</MudText>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="8">
+            @if (_selected is not null)
+            {
+                <MudPaper Outlined="true" Class="pa-4">
+                    <MudText Typo="Typo.h6">@_selected.Subject</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">A: @_selected.Recipient</MudText>
+                    @* Il corpo è mostrato come testo, non come HTML: così un'email non può eseguire script in questa pagina. *@
+                    <pre class="fortino-mail-body">@_selected.HtmlBody</pre>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private IReadOnlyList<MailMessage> _messages = [];
+    private MailMessage? _selected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _messages = await Mail.GetAllAsync();
+        _selected = _messages.FirstOrDefault();
+    }
+}

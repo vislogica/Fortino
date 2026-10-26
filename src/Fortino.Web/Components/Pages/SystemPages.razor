@@ -1,0 +1,18 @@
+@page "/access-denied"
+@page "/error"
+@attribute [AllowAnonymous]
+@inject NavigationManager Nav
+
+@if (Nav.Uri.Contains("/error"))
+{
+    <PageTitle>Errore · Fortino</PageTitle>
+    @* Messaggio generico: i dettagli dell'errore vanno nel Registro, non a video (capitolo 13). *@
+    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">Si è verificato un errore. Riprova tra qualche istante.</MudAlert>
+}
+else
+{
+    <PageTitle>Accesso negato · Fortino</PageTitle>
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+        Non hai i permessi per questa pagina. Usa "Entra come…" in alto a destra per cambiare utente.
+    </MudAlert>
+}

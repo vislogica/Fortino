@@ -1,0 +1,48 @@
+@page "/"
+@inject FortinoQueries Queries
+
+<PageTitle>Home · Fortino</PageTitle>
+
+<AuthorizeView Policy="@Policies.Staff">
+    <Authorized>
+        <MudText Typo="Typo.h5" Class="mb-4">Buongiorno, @context.User.GetDisplayName()</MudText>
+        @if (_figures is not null)
+        {
+            <MudGrid Class="mb-2">
+                <MudItem xs="12" sm="4"><KpiCard Value="@Labels.Money(_figures.Invoiced)" Label="Fatturato 2026" /></MudItem>
+                <MudItem xs="12" sm="4"><KpiCard Value="@Labels.Money(_figures.ToCollect)" Label="Da incassare" /></MudItem>
+                <MudItem xs="12" sm="4"><KpiCard Value="@_figures.DraftOrders.ToString()" Label="Ordini in bozza" /></MudItem>
+            </MudGrid>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <MudText Typo="Typo.h5" Class="mb-4">Benvenuto nel portale clienti</MudText>
+        <MudButton Href="/portal" Variant="Variant.Filled" Color="Color.Primary" Class="mb-6">Vai ai tuoi ordini</MudButton>
+    </NotAuthorized>
+</AuthorizeView>
+
+<MudPaper Class="pa-5" Outlined="true">
+    <MudText Typo="Typo.h6">Cos'è Fortino</MudText>
+    <MudText Class="mt-2">
+        Fortino è il gestionale di Carta &amp; Co., un distributore immaginario di forniture per ufficio.
+        Accompagna il libro <i>A prova di attacco</i>: ogni vulnerabilità del libro si prova nel
+        <MudLink Href="/lab">Laboratorio</MudLink>, prima sulla versione vulnerabile e poi su quella corretta.
+    </MudText>
+    <MudText Class="mt-2 mud-text-secondary" Typo="Typo.body2">
+        Dopo ogni prova, "Ripristina i dati" in alto riporta il database allo stato iniziale.
+    </MudText>
+</MudPaper>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private DashboardFigures? _figures;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // I numeri dell'azienda si leggono solo per il personale, non per i clienti del portale.
+        var user = (await AuthState).User;
+        if (user.IsInRole("Admin") || user.IsInRole("Operator"))
+            _figures = await Queries.GetDashboardAsync(2026);
+    }
+}

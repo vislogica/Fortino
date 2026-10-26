@@ -1,0 +1,32 @@
+@* Le righe degli ordini in bozza con il selettore della quantità (caso 11.2).
+   I cursori sono gestiti da wwwroot/lab/ch11.js, non da Blazor. *@
+<MudSimpleTable Dense="true" Outlined="true" Elevation="0">
+    <thead>
+        <tr><th>Riga</th><th>Ordine</th><th>Prodotto</th><th>Quantità nel database</th><th>Nuova quantità (1-99)</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var line in Lines)
+        {
+            <tr>
+                <td>@line.Id</td>
+                <td>@line.OrderNumber</td>
+                <td>@line.Description</td>
+                <td>@line.Quantity</td>
+                <td>
+                    <div class="d-flex align-center gap-3">
+                        <input type="range" class="ch11-quantity" min="1" max="99" value="@line.Quantity" data-line="@line.Id" />
+                        @* Il numero scelto e l'esito dell'invio li aggiorna ch11.js. *@
+                        <b class="ch11-quantity-value" data-line="@line.Id" style="min-width:2ch">@line.Quantity</b>
+                        <span class="ch11-quantity-status mud-text-secondary" data-line="@line.Id"></span>
+                    </div>
+                </td>
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+<MudButton Variant="Variant.Outlined" Size="Size.Small" Class="mt-3" OnClick="OnReload">Rileggi dal database</MudButton>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<DraftLine> Lines { get; set; } = [];
+    [Parameter] public EventCallback OnReload { get; set; }
+}

@@ -1,0 +1,57 @@
+@page "/lab"
+@inject LabRegistry Registry
+@inject LabProgressStore Progress
+
+<PageTitle>Laboratorio · Fortino</PageTitle>
+
+<div class="d-flex align-center mb-1">
+    <MudText Typo="Typo.h5">Laboratorio</MudText>
+    <MudSpacer />
+    <MudChip T="string" Variant="Variant.Outlined">Provati: @_completed di @Registry.All.Count</MudChip>
+</div>
+<MudText Typo="Typo.body2" Class="mb-5 mud-text-secondary">
+    Un riquadro per ogni capitolo del libro. Un caso conta come provato quando hai eseguito l'attacco
+    sia sulla versione vulnerabile sia su quella corretta.
+</MudText>
+
+<MudGrid Spacing="3">
+    @foreach (var chapter in ChapterCatalog.All)
+    {
+        var cases = Registry.ForChapter(chapter.Number);
+        var done = cases.Count(c => LabProgressStore.IsComplete(_done, c));
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Outlined="true" Class="pa-4 fortino-chapter-card">
+                <MudText Typo="Typo.overline" Class="mud-text-secondary">Capitolo @chapter.Number</MudText>
+                <MudText Typo="Typo.subtitle1"><b>@chapter.Title</b></MudText>
+                @if (cases.Count == 0)
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">In preparazione</MudText>
+                }
+                else
+                {
+                    @* Blu finché mancano casi, verde quando il capitolo è tutto provato. *@
+                    <MudProgressLinear Color="@(done == cases.Count ? Color.Success : Color.Primary)" Value="@(100.0 * done / cases.Count)" Class="my-2" Rounded="true" />
+                    <div class="d-flex align-center">
+                        <MudText Typo="Typo.caption">@done di @cases.Count casi provati</MudText>
+                        <MudSpacer />
+                        <MudButton Href="@($"/lab/{ChapterCatalog.Slug(chapter.Number)}")" Size="Size.Small" Color="Color.Primary">Apri</MudButton>
+                    </div>
+                }
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    private HashSet<string> _done = [];
+    private int _completed;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Il browser è raggiungibile solo dopo il primo disegno della pagina.
+        if (!firstRender) return;
+        _done = await Progress.LoadAsync();
+        _completed = Registry.All.Count(c => LabProgressStore.IsComplete(_done, c));
+        StateHasChanged();
+    }
+}

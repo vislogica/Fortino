@@ -1,0 +1,33 @@
+@page "/coupons"
+@attribute [Authorize(Policy = Policies.Staff)]
+@inject FortinoQueries Queries
+
+<PageTitle>Buoni sconto · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Buoni sconto</MudText>
+
+<MudDataGrid T="Coupon" Items="_items" Dense="true" Hover="true" Elevation="0" Outlined="true">
+    <Columns>
+        <PropertyColumn Property="x => x.Code" Title="Codice" />
+        <TemplateColumn Title="Sconto">
+            <CellTemplate>@context.Item.DiscountPercent %</CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Stato">
+            <CellTemplate>
+                @if (context.Item.IsUsed)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">Usato</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Text">Disponibile</MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private IReadOnlyList<Coupon> _items = [];
+
+    protected override async Task OnInitializedAsync() => _items = await Queries.GetCouponsAsync();
+}

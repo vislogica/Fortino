@@ -1,0 +1,58 @@
+@page "/lab/{ChapterSlug}"
+@inject LabRegistry Registry
+@inject LabProgressStore Progress
+
+@if (_chapter is null)
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Capitolo non trovato.</MudAlert>
+}
+else
+{
+    <PageTitle>Capitolo @_chapter.Number · Laboratorio</PageTitle>
+    <MudBreadcrumbs Items="_breadcrumbs" Class="px-0 pt-0" />
+    <MudText Typo="Typo.h5" Class="mb-4">Capitolo @_chapter.Number · @_chapter.Title</MudText>
+
+    @foreach (var labCase in Registry.ForChapter(_chapter.Number))
+    {
+        // Il pulsante diventa verde quando il caso è stato provato su entrambe le versioni
+        // (o solo su quella corretta, se la vulnerabile non c'è).
+        var complete = LabProgressStore.IsComplete(_done, labCase);
+        <MudPaper Outlined="true" Class="pa-4 mb-3">
+            <div class="d-flex align-center">
+                <div>
+                    <MudText Typo="Typo.subtitle1"><b>@labCase.Title</b></MudText>
+                    <MudText Typo="Typo.body2">@labCase.Summary</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@labCase.BookReference · @labCase.Owasp</MudText>
+                </div>
+                <MudSpacer />
+                <MudButton Href="@($"/lab/{ChapterSlug}/{labCase.Slug}")" Variant="Variant.Filled" Size="Size.Small"
+                           Color="@(complete ? Color.Success : Color.Primary)"
+                           StartIcon="@(complete ? Icons.Material.Filled.Check : null)">
+                    @(complete ? "Provato" : "Prova")
+                </MudButton>
+            </div>
+        </MudPaper>
+    }
+}
+
+@code {
+    [Parameter] public string ChapterSlug { get; set; } = "";
+
+    private ChapterCatalog.ChapterInfo? _chapter;
+    private List<BreadcrumbItem> _breadcrumbs = [];
+    private HashSet<string> _done = [];
+
+    protected override void OnParametersSet()
+    {
+        _chapter = ChapterCatalog.FindBySlug(ChapterSlug);
+        _breadcrumbs = [new("Laboratorio", "/lab"), new($"Capitolo {_chapter?.Number}", null, disabled: true)];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Il browser è raggiungibile solo dopo il primo disegno della pagina.
+        if (!firstRender) return;
+        _done = await Progress.LoadAsync();
+        StateHasChanged();
+    }
+}

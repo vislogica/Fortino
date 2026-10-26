@@ -1,0 +1,32 @@
+@page "/documents"
+@attribute [Authorize(Policy = Policies.Staff)]
+@inject FortinoQueries Queries
+
+<PageTitle>Documenti · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Documenti</MudText>
+
+@if (_items.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+        Nessun documento caricato. Upload e download si provano nei capitoli 9 e 10 del Laboratorio.
+    </MudAlert>
+}
+else
+{
+    <MudDataGrid T="StoredDocument" Items="_items" Dense="true" Hover="true" Elevation="0" Outlined="true">
+        <Columns>
+            <PropertyColumn Property="x => x.OriginalName" Title="Nome" />
+            <PropertyColumn Property="x => x.ContentType" Title="Tipo" />
+            <PropertyColumn Property="x => x.Size" Title="Dimensione (byte)" />
+            <TemplateColumn Title="Caricato il">
+                <CellTemplate>@context.Item.UploadedAt.ToString("dd/MM/yyyy HH:mm")</CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    private IReadOnlyList<StoredDocument> _items = [];
+
+    protected override async Task OnInitializedAsync() => _items = await Queries.GetDocumentsAsync();
+}

@@ -1,0 +1,293 @@
+{
+  "Ch01.AccessControl/Secure/AccessApi.cs#funzione-corretto": [
+    "bool isStaff = isAdmin ",
+    " isOperator;",
+    "if (!isStaff)"
+  ],
+  "Ch01.AccessControl/Secure/AccessApi.cs#idor-corretto": [
+    "int? customerId = user.GetCustomerId();",
+    "OrderView? order = await Ch01Shared.OrderForCustomerAsync(factory, orderId, customerId.Value);"
+  ],
+  "Ch01.AccessControl/Vulnerable/AccessApi.cs#funzione-vulnerabile": [
+    "group.MapGet(\"/customers\", async (DbConnectionFactory factory) =>"
+  ],
+  "Ch01.AccessControl/Vulnerable/AccessApi.cs#idor-vulnerabile": [
+    "OrderView? order = await Ch01Shared.OrderByIdAsync(factory, orderId);"
+  ],
+  "Ch02.Injection/Secure/InjectionApi.cs#sql-injection-corretto": [
+    "string sql = \"SELECT Name, VatNumber FROM Customer WHERE Name LIKE @pattern;\";",
+    "QueryAsync<CustomerHit>(sql, parameters);"
+  ],
+  "Ch02.Injection/Secure/InjectionApi.cs#xss-corretto": [
+    "string safeNoteText = HtmlEncoder.Default.Encode(noteText);"
+  ],
+  "Ch02.Injection/Vulnerable/InjectionApi.cs#sql-injection-vulnerabile": [
+    "string sql = $\"SELECT Name, VatNumber FROM Customer WHERE Name LIKE '%{term}%';\";"
+  ],
+  "Ch02.Injection/Vulnerable/InjectionApi.cs#xss-vulnerabile": [
+    "string html = $\"<div class=\\\"nota\\\">{noteText}</div>\";"
+  ],
+  "Ch03.Authentication/Secure/AuthApi.cs#forza-bruta-corretto": [
+    "bool isBlocked = throttle.IsBlocked(request.Username);",
+    "throttle.RecordFailure(request.Username);",
+    "throttle.Reset(request.Username);"
+  ],
+  "Ch03.Authentication/Secure/AuthApi.cs#sessione-corretto": [
+    "AppUser? currentUser = await users.FindByIdAsync(userId.Value);",
+    "if (!currentUser.IsActive)"
+  ],
+  "Ch03.Authentication/Vulnerable/AuthApi.cs#forza-bruta-vulnerabile": [
+    "passwordIsCorrect = PasswordCheck.Verify(user, request.Password);",
+    "return Results.Unauthorized();"
+  ],
+  "Ch03.Authentication/Vulnerable/AuthApi.cs#sessione-vulnerabile": [
+    "string displayName = user.GetDisplayName();"
+  ],
+  "Ch04.SecurityHeaders/Secure/HeadersApi.cs#clickjacking-corretto": [
+    "http.Response.Headers[\"X-Frame-Options\"] = \"DENY\";",
+    "http.Response.Headers[\"Content-Security-Policy\"] = \"frame-ancestors 'none'\";"
+  ],
+  "Ch04.SecurityHeaders/Secure/HeadersApi.cs#cors-corretto": [
+    "bool originIsAllowed = origin == AllowedOrigin;",
+    "if (originIsAllowed)"
+  ],
+  "Ch04.SecurityHeaders/Vulnerable/HeadersApi.cs#clickjacking-vulnerabile": [
+    "IResult response = Results.Content(html, \"text/html\");"
+  ],
+  "Ch04.SecurityHeaders/Vulnerable/HeadersApi.cs#cors-vulnerabile": [
+    "http.Response.Headers[\"Access-Control-Allow-Origin\"] = origin;",
+    "http.Response.Headers[\"Access-Control-Allow-Credentials\"] = \"true\";"
+  ],
+  "Ch05.SupplyChain/Secure/DependencyHygiene.cs#controllo-dipendenze": [
+    "public const string CheckVulnerable = \"dotnet list package --vulnerable --include-transitive\";"
+  ],
+  "Ch05.SupplyChain/Vulnerable/NotIncludedYet.cs#componenti-vulnerabili-da-integrare": [
+    "dotnet list package --vulnerable"
+  ],
+  "Ch06.Secrets/Secure/DataProtectionConfig.cs#chiavi-persistenti": [
+    "DirectoryInfo folder = new DirectoryInfo(keyFolder);",
+    "builder.PersistKeysToFileSystem(folder);"
+  ],
+  "Ch06.Secrets/Secure/SecretApi.cs#segreto-da-configurazione": [
+    "string? signingKey = configuration[\"Fortino:SigningKey\"];"
+  ],
+  "Ch06.Secrets/Vulnerable/KeyRingConfig.cs#chiavi-effimere-vulnerabile": [
+    "builder.SetApplicationName(\"Fortino\");"
+  ],
+  "Ch06.Secrets/Vulnerable/SecretApi.cs#segreto-nel-codice-vulnerabile": [
+    "public const string SigningKey = \"k3y-firma-token-fortino-2026\";"
+  ],
+  "Ch07.BusinessLogic/Secure/InvoiceService.cs#documento-corretto": [
+    "i.IssuedCustomerName AS CustomerName",
+    "i.IssuedPaymentIban AS PaymentIban"
+  ],
+  "Ch07.BusinessLogic/Secure/InvoiceService.cs#fattura-modifica-corretta": [
+    "AND EXISTS (SELECT 1 FROM Invoice WHERE Id = @invoiceId AND Status = @draft);"
+  ],
+  "Ch07.BusinessLogic/Secure/OrderService.cs#riga-ordine-corretta": [
+    "bool quantityIsValid = quantity >= 1 && quantity <= MaxQuantity;",
+    "unitPrice = product.UnitPrice"
+  ],
+  "Ch07.BusinessLogic/Secure/OrderService.cs#stato-ordine-corretto": [
+    "bool moveIsAllowed = OrderWorkflow.CanMove(currentStatus.Value, newStatus);",
+    "WHERE Id = @orderId AND Status = @current;"
+  ],
+  "Ch07.BusinessLogic/Vulnerable/InvoiceService.cs#documento-vulnerabile": [
+    "c.Name AS CustomerName",
+    "s.PaymentIban",
+    "CROSS JOIN CompanySettings s"
+  ],
+  "Ch07.BusinessLogic/Vulnerable/InvoiceService.cs#fattura-modifica-vulnerabile": [
+    "WHERE Id = @lineId AND InvoiceId = @invoiceId;"
+  ],
+  "Ch07.BusinessLogic/Vulnerable/OrderService.cs#riga-ordine-vulnerabile": [
+    "int quantity = request.Quantity;"
+  ],
+  "Ch07.BusinessLogic/Vulnerable/OrderService.cs#stato-ordine-vulnerabile": [
+    "UPDATE SalesOrder SET Status = @status WHERE Id = @orderId;"
+  ],
+  "Ch08.MassAssignment/Secure/OrderLineApi.cs#riga-ordine-corretta": [
+    "Description = product.Name,",
+    "UnitPrice = product.UnitPrice,"
+  ],
+  "Ch08.MassAssignment/Secure/ProfileApi.cs#profilo-corretto": [
+    ".Select(u => new ProfileResponse(u.DisplayName, u.Email))",
+    "user.DisplayName = newDisplayName;",
+    "user.Email = newEmail;"
+  ],
+  "Ch08.MassAssignment/Vulnerable/OrderLineApi.cs#riga-ordine-vulnerabile": [
+    "async (int orderId, OrderLine line,",
+    "db.OrderLines.Add(line);"
+  ],
+  "Ch08.MassAssignment/Vulnerable/ProfileApi.cs#profilo-vulnerabile": [
+    "IResult response = Results.Ok(user);",
+    "async (User changes",
+    "db.Users.Update(changes);"
+  ],
+  "Ch09.FileHandling/Secure/DocumentApi.cs#salva-file-corretto": [
+    "string storedName = $\"{Guid.NewGuid():N}{extension}\";",
+    "bool extensionIsAllowed = AllowedExtensions.Contains(extension);",
+    "string originalName = Path.GetFileName(file.FileName);"
+  ],
+  "Ch09.FileHandling/Secure/DocumentApi.cs#scarica-file-corretto": [
+    "group.MapGet(\"/documents/{id:int}\"",
+    "string fullPath = store.PathFor(document.StoredName);"
+  ],
+  "Ch09.FileHandling/Vulnerable/UnsafeDocumentIO.cs#salva-file-vulnerabile": [
+    "string path = Path.Combine(store.Root, fileName);"
+  ],
+  "Ch09.FileHandling/Vulnerable/UnsafeDocumentIO.cs#scarica-file-vulnerabile": [
+    "string path = Path.Combine(store.Root, fileName);"
+  ],
+  "Ch10.ResourceConsumption/Secure/ImageSizeGuard.cs#limite-immagine-corretto": [
+    "bool sizeIsValid = width > 0 && height > 0 && width <= MaxWidth && height <= MaxHeight;",
+    "if (declaredBytes > MaxBytes)"
+  ],
+  "Ch10.ResourceConsumption/Secure/SafeTextValidator.cs#validazione-corretta": [
+    "TimeSpan.FromMilliseconds(100)",
+    "bool isTooLong = input.Length > MaxLength;",
+    "catch (RegexMatchTimeoutException)"
+  ],
+  "Ch10.ResourceConsumption/Secure/StreamingZipExport.cs#esportazione-corretta": [
+    "bool tooManyEntries = count > MaxEntries;",
+    "await foreach (ExportEntry item in entries.WithCancellation(ct))"
+  ],
+  "Ch10.ResourceConsumption/Vulnerable/SlowRegex.cs#regex-vulnerabile": [
+    "private static readonly Regex Pattern = new(\"^(a+)+$\");"
+  ],
+  "Ch10.ResourceConsumption/Vulnerable/UnboundedExport.cs#esportazione-vulnerabile": [
+    "using MemoryStream memory = new MemoryStream();"
+  ],
+  "Ch10.ResourceConsumption/Vulnerable/UnboundedImage.cs#immagine-vulnerabile": [
+    "byte[] bitmap = new byte[bytes];"
+  ],
+  "Ch11.BlazorServer/Secure/MyInvoicesService.cs#fatture-corrette": [
+    "AuthenticationState state = await authentication.GetAuthenticationStateAsync();",
+    ".AddScoped<MyInvoicesService>();"
+  ],
+  "Ch11.BlazorServer/Secure/QuantityEditor.cs#quantita-corretta": [
+    "public sealed class QuantityEditor(DbConnectionFactory factory, int customerId)",
+    "bool quantityIsValid = quantity >= 1 && quantity <= MaxQuantity;",
+    "AND OrderId IN (SELECT Id FROM SalesOrder WHERE CustomerId = @customerId AND Status = @draft);"
+  ],
+  "Ch11.BlazorServer/Vulnerable/MyInvoicesService.cs#fatture-vulnerabile": [
+    "public int? CustomerId { get; private set; }",
+    "int? customerId = current.CustomerId;",
+    ".AddSingleton<PortalUserContext>()",
+    ".AddSingleton<MyInvoicesService>();"
+  ],
+  "Ch11.BlazorServer/Vulnerable/QuantityEditor.cs#quantita-vulnerabile": [
+    "public async Task SetQuantity(int lineId, int quantity)",
+    "WHERE Id = @lineId"
+  ],
+  "Ch12.WeakCryptography/Secure/PasswordHashing.cs#hash-password-corretto": [
+    "private const int Iterations = 600_000;",
+    "byte[] salt = RandomNumberGenerator.GetBytes(SaltSize);",
+    "Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, KeySize)",
+    "CryptographicOperations.FixedTimeEquals(actual, expected)"
+  ],
+  "Ch12.WeakCryptography/Secure/ResetToken.cs#token-corretto": [
+    "byte[] randomBytes = RandomNumberGenerator.GetBytes(TokenBytes);",
+    "string storedHash = HashOf(token);",
+    "CryptographicOperations.FixedTimeEquals(actual, expected)"
+  ],
+  "Ch12.WeakCryptography/Vulnerable/WeakPasswordHashing.cs#hash-debole-vulnerabile": [
+    "byte[] hashBytes = MD5.HashData(passwordBytes);"
+  ],
+  "Ch12.WeakCryptography/Vulnerable/WeakToken.cs#token-debole-vulnerabile": [
+    "int seed = (int)unixSeconds;",
+    "Random random = new Random(seed);"
+  ],
+  "Ch13.ErrorHandling/Secure/ErrorHandlingApi.cs#errore-dettagli-corretto": [
+    "logger.LogWarning(ex, \"Emissione fattura non riuscita (rif. {Reference}).\", reference);",
+    "string message = $\"Operazione non riuscita. Riferimento per l'assistenza: {reference}.\";"
+  ],
+  "Ch13.ErrorHandling/Secure/ErrorHandlingApi.cs#fail-open-corretto": [
+    "bool isOwner = false;",
+    "isOwner = false;",
+    "if (!isOwner)"
+  ],
+  "Ch13.ErrorHandling/Vulnerable/ErrorHandlingApi.cs#errore-dettagli-vulnerabile": [
+    "string errorDetails = ex.ToString();",
+    "Results.Problem(detail: errorDetails"
+  ],
+  "Ch13.ErrorHandling/Vulnerable/ErrorHandlingApi.cs#fail-open-vulnerabile": [
+    "int customerId = int.Parse(customerIdText!);",
+    "si tira dritto invece di negare (fail open)."
+  ],
+  "Ch14.Logging/Secure/LoggingApi.cs#audit-mancante-corretto": [
+    "logger.LogInformation(\"AUDIT: l'utente {Actor} ha disattivato l'utente con id {TargetId}.\","
+  ],
+  "Ch14.Logging/Secure/LoggingApi.cs#segreti-nei-log-corretto": [
+    "logger.LogInformation(\"Tentativo di accesso per l'utente {Username}.\", request.Username);",
+    "string requestText = SafeLog.Describe(request);"
+  ],
+  "Ch14.Logging/Vulnerable/LoggingApi.cs#audit-mancante-vulnerabile": [
+    "await Ch14Shared.DeactivateUserAsync(factory, userId);"
+  ],
+  "Ch14.Logging/Vulnerable/LoggingApi.cs#segreti-nei-log-vulnerabile": [
+    "logger.LogInformation(\"Tentativo di accesso: utente={Username}, password={Password}\","
+  ],
+  "Ch15.OpenRedirect/Secure/RedirectApi.cs#host-header-corretto": [
+    "string link = $\"{Ch15Shared.OfficialBaseUrl}/reset-password?token={Guid.NewGuid():N}\";"
+  ],
+  "Ch15.OpenRedirect/Secure/RedirectApi.cs#open-redirect-corretto": [
+    "string safeUrl = SafeReturnUrl(form.ReturnUrl);",
+    "IResult response = Results.LocalRedirect(safeUrl);"
+  ],
+  "Ch15.OpenRedirect/Vulnerable/RedirectApi.cs#host-header-vulnerabile": [
+    "string? forwardedHost = http.Headers[\"X-Forwarded-Host\"].FirstOrDefault();",
+    "string link = $\"https://{host}/reset-password?token={Guid.NewGuid():N}\";"
+  ],
+  "Ch15.OpenRedirect/Vulnerable/RedirectApi.cs#open-redirect-vulnerabile": [
+    "string returnUrl = form.ReturnUrl ?? \"/\";",
+    "IResult response = Results.Redirect(returnUrl);"
+  ],
+  "Ch16.RaceCondition/Secure/RaceApi.cs#coupon-corretto": [
+    "WHERE Code = @Code AND IsUsed = 0;",
+    "bool couponRedeemed = changedRows == 1;"
+  ],
+  "Ch16.RaceCondition/Secure/RaceApi.cs#doppia-fattura-corretto": [
+    "WHERE o.Id = @orderId AND NOT EXISTS (SELECT 1 FROM Invoice WHERE OrderId = @orderId);",
+    "bool invoiceCreated = insertedRows == 1;"
+  ],
+  "Ch16.RaceCondition/Vulnerable/RaceApi.cs#coupon-vulnerabile": [
+    "bool alreadyUsed = await connection.ExecuteScalarAsync<bool>(readSql, readParameters);",
+    "await Task.Delay(50);   // finestra: elaborazione, rete, attesa del database",
+    "UPDATE Coupon SET IsUsed = 1, UsedByOrderId = @OrderId WHERE Code = @Code;"
+  ],
+  "Ch16.RaceCondition/Vulnerable/RaceApi.cs#doppia-fattura-vulnerabile": [
+    "bool invoiceExists = await connection.ExecuteScalarAsync<bool>(readSql, readParameters);",
+    "await Task.Delay(50);"
+  ],
+  "Ch17.AiRisks/Secure/AssistantApi.cs#accesso-eccessivo-corretto": [
+    "int customerId = user.GetCustomerId() ?? 0;",
+    "string answer = await FakeAssistant.DescribeOrdersAsync(factory, customerId);"
+  ],
+  "Ch17.AiRisks/Secure/AssistantApi.cs#prompt-injection-corretto": [
+    "string answer = FakeAssistant.AnswerGuarded(request.Question);"
+  ],
+  "Ch17.AiRisks/Vulnerable/AssistantApi.cs#accesso-eccessivo-vulnerabile": [
+    "int? mentionedCustomerId = await FakeAssistant.CustomerMentionedAsync(factory, request.Question);",
+    "targetCustomerId = mentionedCustomerId.Value;"
+  ],
+  "Ch17.AiRisks/Vulnerable/AssistantApi.cs#prompt-injection-vulnerabile": [
+    "string prompt = FakeAssistant.SystemPrompt",
+    "+ \"\\nNote degli ordini del cliente:\\n\" + notesText"
+  ],
+  "Ch18.Deserialization/Secure/SafeDeserialization.cs#deserializzazione-corretta": [
+    "JsonSerializer.Deserialize<ImportedOrder>(json,",
+    "JsonUnmappedMemberHandling.Disallow,"
+  ],
+  "Ch18.Deserialization/Secure/SafeXmlImport.cs#xml-corretto": [
+    "DtdProcessing = DtdProcessing.Prohibit,",
+    "XmlResolver = null,"
+  ],
+  "Ch18.Deserialization/Vulnerable/UnsafeDeserialization.cs#deserializzazione-vulnerabile": [
+    "TypeNameHandling = TypeNameHandling.All,"
+  ],
+  "Ch18.Deserialization/Vulnerable/UnsafeXmlImport.cs#xml-vulnerabile": [
+    "DtdProcessing = DtdProcessing.Parse,",
+    "XmlResolver = new XmlUrlResolver(),"
+  ]
+}

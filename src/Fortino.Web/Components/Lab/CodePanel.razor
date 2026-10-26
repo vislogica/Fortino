@@ -1,0 +1,53 @@
+@using System.Net
+@using System.Text
+@* Mostra una regione "#region libro: ..." di un file dei capitoli, con i numeri di riga,
+   i colori di un editor e le righe importanti in rosso (vulnerabile) o in verde (corretto). *@
+
+@if (_snippet is null)
+{
+    <MudText Typo="Typo.caption" Class="mud-text-secondary">Codice non trovato: @Location.File (@Location.Region)</MudText>
+}
+else
+{
+    <div class="fortino-code fortino-code-@Tone">
+        <div class="fortino-code-file">src/Fortino.Web/Chapters/@_snippet.File, riga @_snippet.FirstLine</div>
+        <pre>@_html</pre>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public CodeLocation Location { get; set; } = default!;
+    [Parameter] public string Tone { get; set; } = "bad";   // "bad" = vulnerabile, "good" = corretto
+
+    private Snippet? _snippet;
+    private MarkupString _html;
+
+    protected override void OnParametersSet()
+    {
+        _snippet = SourceSnippets.Get(Location);
+        if (_snippet is not null) _html = Render(_snippet);
+    }
+
+    // Tutto il testo passa da HtmlEncode: nel markup finiscono solo i nostri <span>.
+    private MarkupString Render(Snippet snippet)
+    {
+        var fragments = CodeHighlights.For(Location);
+        var colored = CSharpColorizer.Colorize(snippet.Lines);
+        var html = new StringBuilder();
+        for (var i = 0; i < snippet.Lines.Count; i++)
+        {
+            var important = CodeHighlights.IsHighlighted(snippet.Lines[i], fragments);
+            html.Append(important ? $"<span class=\"line hl-{Tone}\">" : "<span class=\"line\">");
+            html.Append("<span class=\"ln\">").Append((snippet.FirstLine + i).ToString().PadLeft(4)).Append("</span>");
+            foreach (var token in colored[i])
+            {
+                var text = WebUtility.HtmlEncode(token.Text);
+                // Le righe importanti hanno un colore solo, come nel libro: si leggono a colpo d'occhio.
+                if (token.Kind is null || important) html.Append(text);
+                else html.Append("<span class=\"tk-").Append(token.Kind).Append("\">").Append(text).Append("</span>");
+            }
+            html.Append("</span>");
+        }
+        return new MarkupString(html.ToString());
+    }
+}

@@ -1,0 +1,60 @@
+@page "/login"
+@* La stessa pagina serve anche al caso 15.1 (open redirect): cambia solo dove arriva il modulo. *@
+@page "/lab/ch15/{LabVariant}/login"
+@attribute [AllowAnonymous]
+@layout Layout.EmptyLayout
+
+<PageTitle>Accesso · Fortino</PageTitle>
+
+<div class="fortino-login">
+    <MudPaper Class="pa-8" Elevation="2" Style="width:380px">
+        <div class="d-flex align-center gap-2 mb-1">
+            <img src="favicon.svg" alt="" width="28" height="28" />
+            <MudText Typo="Typo.h5"><b>Fortino</b></MudText>
+        </div>
+        <MudText Typo="Typo.body2" Class="mb-6 mud-text-secondary">Gestionale dimostrativo di Carta &amp; Co.</MudText>
+
+        @if (IsLab)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+                Laboratorio, caso 15.1 · versione @(LabVariant == "vulnerable" ? "vulnerabile" : "corretta").
+                Dopo l'accesso vai a: <code>@(ReturnUrl ?? "/")</code>
+            </MudAlert>
+        }
+
+        @if (Error is not null)
+        {
+            @* Il testo è fisso: dall'indirizzo arriva solo un codice (capitolo 15). *@
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-4">Nome utente o password non corretti.</MudAlert>
+        }
+
+        <form method="post" action="@FormAction">
+            <AntiforgeryToken />
+            <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+            <label class="fortino-label" for="username">Nome utente</label>
+            <input class="fortino-input" id="username" name="Username" autocomplete="username" required />
+            <label class="fortino-label" for="password">Password</label>
+            <input class="fortino-input" id="password" name="Password" type="password" autocomplete="current-password" required />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4">
+                Accedi
+            </MudButton>
+        </form>
+
+        <MudText Typo="Typo.caption" Class="mt-6 d-block mud-text-secondary">
+            Utenti dimostrativi: anna, mario, verdi, lumen. La password è nel README del progetto.
+        </MudText>
+    </MudPaper>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")] public string? Error { get; set; }
+    [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+
+    // "vulnerable" o "secure" quando la pagina è aperta dal caso 15.1; vuoto per il login normale.
+    [Parameter] public string? LabVariant { get; set; }
+
+    private bool IsLab => LabVariant is "vulnerable" or "secure";
+
+    // Il login normale va a /auth/login; quello del caso 15.1 alla versione scelta del capitolo.
+    private string FormAction => IsLab ? $"/lab/ch15/{LabVariant}/auth/login" : "/auth/login";
+}

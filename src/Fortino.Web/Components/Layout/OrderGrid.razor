@@ -1,0 +1,27 @@
+<MudDataGrid T="Order" Items="Items" Dense="true" Hover="true" Elevation="0" Outlined="true">
+    <Columns>
+        <PropertyColumn Property="x => x.Number" Title="Numero" />
+        <TemplateColumn Title="Data">
+            <CellTemplate>@context.Item.OrderDate.ToString("dd/MM/yyyy")</CellTemplate>
+        </TemplateColumn>
+        @if (ShowCustomer)
+        {
+            <PropertyColumn Property="x => x.CustomerName" Title="Cliente" />
+        }
+        <TemplateColumn Title="Totale">
+            <CellTemplate>@Labels.Money(context.Item.Total)</CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Stato">
+            <CellTemplate>
+                @{ var (text, color) = Labels.Order(context.Item.Status); }
+                <MudChip T="string" Size="Size.Small" Color="color" Variant="Variant.Text">@text</MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.Notes" Title="Note" />
+    </Columns>
+</MudDataGrid>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<Order> Items { get; set; } = [];
+    [Parameter] public bool ShowCustomer { get; set; }
+}

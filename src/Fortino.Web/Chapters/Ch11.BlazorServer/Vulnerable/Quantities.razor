@@ -1,0 +1,51 @@
+@page "/lab/ch11/vulnerable/quantities"
+@attribute [Authorize(Policy = Policies.Customer)]
+@implements IDisposable
+@inject DbConnectionFactory Factory
+@inject IJSRuntime JS
+
+@* VERSIONE VULNERABILE (caso 11.2). *@
+<PageTitle>Quantità · versione vulnerabile</PageTitle>
+<MudText Typo="Typo.h5">I miei ordini in bozza</MudText>
+<MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-4">Capitolo 11, caso 11.2 · versione vulnerabile</MudText>
+
+<QuantityTable Lines="_lines" OnReload="LoadAsync" />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private List<DraftLine> _lines = [];
+    private DotNetObjectReference<Vulnerable.QuantityEditor>? _editor;
+    private DotNetObjectReference<Quantities>? _page;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // Da qui in poi il browser può chiamare i metodi [JSInvokable] di questo oggetto.
+        _editor = DotNetObjectReference.Create(new Vulnerable.QuantityEditor(Factory));
+        _page = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("fortinoCh11.register", _editor, _page);
+    }
+
+    // Il cursore, dopo ogni modifica, fa rileggere la tabella: si vede subito la quantità nel database.
+    [JSInvokable]
+    public async Task Reload()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync()
+    {
+        var customerId = (await AuthState).User.GetCustomerId();
+        _lines = customerId is int id ? await DraftLines.ForCustomerAsync(Factory, id) : [];
+    }
+
+    public void Dispose()
+    {
+        _editor?.Dispose();
+        _page?.Dispose();
+    }
+}

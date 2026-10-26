@@ -1,0 +1,27 @@
+@page "/portal"
+@attribute [Authorize(Policy = Policies.Customer)]
+@inject FortinoQueries Queries
+
+<PageTitle>I miei ordini · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">I miei ordini</MudText>
+
+<OrderGrid Items="_orders" />
+
+<MudText Typo="Typo.h6" Class="mt-8 mb-3">Le mie fatture</MudText>
+<InvoiceGrid Items="_invoices" />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<Order> _orders = [];
+    private IReadOnlyList<Invoice> _invoices = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Il cliente si legge dall'utente collegato, mai dall'indirizzo della pagina.
+        var customerId = (await AuthState).User.GetCustomerId();
+        if (customerId is null) return;
+        _orders = await Queries.GetOrdersForCustomerAsync(customerId.Value);
+        _invoices = await Queries.GetInvoicesForCustomerAsync(customerId.Value);
+    }
+}

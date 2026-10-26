@@ -1,0 +1,22 @@
+@* Riporta il database allo stato iniziale: si usa dopo ogni prova del Laboratorio. *@
+@inject DatabaseInitializer Database
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudButton Variant="Variant.Outlined" Size="Size.Small" Class="mr-3" Disabled="_busy"
+           StartIcon="@Icons.Material.Outlined.RestartAlt" OnClick="ResetAsync">
+    Ripristina i dati
+</MudButton>
+
+@code {
+    private bool _busy;
+
+    private async Task ResetAsync()
+    {
+        _busy = true;
+        await Database.ResetAsync();
+        Snackbar.Add("Dati riportati allo stato iniziale.", Severity.Success);
+        _busy = false;
+        Nav.Refresh(forceReload: true);
+    }
+}

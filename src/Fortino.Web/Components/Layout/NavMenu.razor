@@ -1,0 +1,31 @@
+@inject LabRegistry Lab
+
+<div class="fortino-brand">
+    <img src="favicon.svg" alt="" width="22" height="22" />
+    <span>Fortino</span>
+</div>
+
+<MudNavMenu Class="fortino-nav">
+    <AuthorizeView Policy="@Policies.Staff">
+        <MudText Typo="Typo.overline" Class="fortino-nav-group">Gestionale</MudText>
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Dashboard">Home</MudNavLink>
+        <MudNavLink Href="/customers" Icon="@Icons.Material.Outlined.Business">Clienti</MudNavLink>
+        <MudNavLink Href="/orders" Icon="@Icons.Material.Outlined.ShoppingCart">Ordini</MudNavLink>
+        <MudNavLink Href="/invoices" Icon="@Icons.Material.Outlined.ReceiptLong">Fatture</MudNavLink>
+        <MudNavLink Href="/coupons" Icon="@Icons.Material.Outlined.LocalOffer">Buoni sconto</MudNavLink>
+        <MudNavLink Href="/documents" Icon="@Icons.Material.Outlined.Description">Documenti</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView Policy="@Policies.Customer">
+        <MudText Typo="Typo.overline" Class="fortino-nav-group">Portale clienti</MudText>
+        <MudNavLink Href="/portal" Icon="@Icons.Material.Outlined.Storefront">I miei ordini</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView>
+        <MudText Typo="Typo.overline" Class="fortino-nav-group">Strumenti</MudText>
+        <MudNavLink Href="/mailbox" Icon="@Icons.Material.Outlined.Mail">Posta finta</MudNavLink>
+        <MudNavLink Href="/log" Icon="@Icons.Material.Outlined.ListAlt">Registro</MudNavLink>
+        <MudText Typo="Typo.overline" Class="fortino-nav-group">Libro</MudText>
+        <MudNavLink Href="/lab" Icon="@Icons.Material.Outlined.Science">
+            Laboratorio <MudChip T="string" Size="Size.Small" Class="ml-1 fortino-count">@Lab.All.Count</MudChip>
+        </MudNavLink>
+    </AuthorizeView>
+</MudNavMenu>

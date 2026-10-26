@@ -1,0 +1,24 @@
+# Capitolo 15 — Open redirect e Host header
+# Richieste da inviare a mano da Visual Studio (pulsante "Invia richiesta" sopra ogni blocco).
+#
+# Prima di tutto serve il cookie di accesso:
+#  1. avvia Fortino ed entra come lumen (Ottica Lumen, password: Fortino-Demo-2026);
+#  2. nel browser apri gli Strumenti per sviluppatori (F12) > Applicazione > Cookie;
+#  3. copia il valore del cookie "Fortino.Auth" nella variabile @cookie qui sotto.
+# Cambia @variant tra "vulnerable" e "secure" per provare le due versioni.
+# Dopo la prova guarda il link dell'email nella pagina Posta (/mailbox).
+
+@host = https://localhost:5001
+@variant = vulnerable
+@cookie = incolla-qui-il-valore-del-cookie
+
+### 15.2 Reset della password con nome host falsificato
+# L'intestazione X-Forwarded-Host la sceglie chi invia la richiesta: qui è quella del truffatore.
+# Versione vulnerabile: il link dell'email di reset punta a sito-del-truffatore.example.
+# Versione corretta: il link usa l'indirizzo ufficiale e il nome host falsificato viene ignorato.
+POST {{host}}/lab/ch15/{{variant}}/forgot-password
+Cookie: Fortino.Auth={{cookie}}
+Content-Type: application/json
+X-Forwarded-Host: sito-del-truffatore.example
+
+{ "username": "lumen" }

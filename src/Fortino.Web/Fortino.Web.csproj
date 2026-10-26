@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.79" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.13" />
+    <PackageReference Include="MudBlazor" Version="9.7.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lo schema del database viaggia dentro l'assembly. -->
+    <EmbeddedResource Include="Data\Schema.sql" LogicalName="Fortino.Schema.sql" />
+    <!-- Il Laboratorio mostra a video il codice dei capitoli: i sorgenti viaggiano dentro l'assembly. -->
+    <EmbeddedResource Include="Chapters\**\*.cs" LogicalName="Chapters/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Le righe da evidenziare nel codice mostrato, le stesse del libro. -->
+    <EmbeddedResource Include="Lab\Highlights.json" LogicalName="Fortino.Highlights.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Fortino.Tests" />
+  </ItemGroup>
+
+</Project>

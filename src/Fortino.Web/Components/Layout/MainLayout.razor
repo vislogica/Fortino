@@ -1,0 +1,35 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="@Theme.FortinoTheme.Default" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Dense="true" Class="fortino-appbar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                       OnClick="() => _drawerOpen = !_drawerOpen" aria-label="Apri o chiudi il menu" />
+        <MudText Typo="Typo.subtitle1" Class="ml-2"><b>Carta &amp; Co.</b> · gestionale dimostrativo</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <ResetDataButton />
+                <UserMenu />
+            </Authorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Never" Elevation="0" Variant="DrawerVariant.Responsive">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+}

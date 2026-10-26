@@ -1,0 +1,193 @@
+@page "/lab/{ChapterSlug}/{CaseSlug}"
+@inject LabRegistry Registry
+@inject LabCaseRunner Runner
+@inject LabProgressStore Progress
+
+@if (_case is null)
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">Caso non trovato.</MudAlert>
+}
+else
+{
+    <PageTitle>@_case.Title · Laboratorio</PageTitle>
+    <MudBreadcrumbs Items="_breadcrumbs" Class="px-0 pt-0" />
+
+    @* Intestazione: cosa dimostra il caso, riferimenti e interruttore delle due versioni. *@
+    <MudPaper Outlined="true" Class="pa-4 mb-4">
+        <div class="d-flex align-start gap-4">
+            <div style="flex:1">
+                <MudText Typo="Typo.h6">Cap. @_case.Chapter · @_case.Title</MudText>
+                <MudText Typo="Typo.body2" Class="mt-1">@_case.Summary</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Libro: @_case.BookReference · @_case.Owasp · ISO 27001 @_case.Iso27001
+                </MudText>
+            </div>
+            <MudButtonGroup OverrideStyles="false" Size="Size.Small">
+                <MudButton Variant="@(_variant == CodeVariant.Vulnerable ? Variant.Filled : Variant.Outlined)"
+                           Color="@(_variant == CodeVariant.Vulnerable ? Color.Error : Color.Default)"
+                           Disabled="@(!_case.VulnerableAvailable)"
+                           OnClick="() => Select(CodeVariant.Vulnerable)">Vulnerabile</MudButton>
+                <MudButton Variant="@(_variant == CodeVariant.Secure ? Variant.Filled : Variant.Outlined)"
+                           Color="@(_variant == CodeVariant.Secure ? Color.Success : Color.Default)"
+                           OnClick="() => Select(CodeVariant.Secure)">Corretto</MudButton>
+            </MudButtonGroup>
+        </div>
+        @if (!_case.VulnerableAvailable)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">
+                La versione vulnerabile e la dimostrazione dell'attacco non sono ancora incluse in questa
+                edizione del progetto: per ora puoi vedere e provare solo la versione corretta.
+            </MudText>
+        }
+    </MudPaper>
+
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="5">
+            <MudPaper Outlined="true" Class="pa-4" Style="height:100%">
+                <MudText Typo="Typo.subtitle1" Class="mb-2"><b>Prova</b></MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">@LabUsersText</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="RunAsync" Disabled="_running"
+                           StartIcon="@Icons.Material.Filled.PlayArrow">
+                    @(_running ? "In corso…" : RunButtonText)
+                </MudButton>
+
+                @if (_run is not null)
+                {
+                    <div class="fortino-steps mt-3">
+                        @foreach (var step in _run.Steps)
+                        {
+                            <div class="fortino-step">
+                                <span>@step.At.ToString("HH:mm:ss")</span>@step.Text
+                                @if (step.Detail is not null)
+                                {
+                                    <pre class="fortino-step-detail">@step.Detail</pre>
+                                }
+                            </div>
+                        }
+                    </div>
+                    @switch (_run.Outcome)
+                    {
+                        case AttackOutcome.Succeeded:
+                            <MudAlert Severity="Severity.Error" Class="mt-3"><b>Attacco riuscito.</b> @_run.Verdict</MudAlert>
+                            break;
+                        case AttackOutcome.Blocked:
+                            <MudAlert Severity="Severity.Success" Class="mt-3"><b>Attacco bloccato.</b> @_run.Verdict</MudAlert>
+                            break;
+                        default:
+                            <MudAlert Severity="Severity.Warning" Class="mt-3">@_run.Verdict</MudAlert>
+                            break;
+                    }
+                }
+
+                @if (_case.ManualPage is not null)
+                {
+                    @* Alcuni casi hanno una pagina dimostrativa da provare a mano: non c'è nel menu,
+                       ci si arriva da qui. *@
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle1" Class="mb-1"><b>Prova a mano</b></MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2">
+                        @_case.ManualHint I passi sono nel libro, @_case.BookReference.
+                        Il pulsante apre la versione scelta con l'interruttore in alto.
+                    </MudText>
+                    <MudButton Href="@ManualPageUrl" Target="_blank" Variant="Variant.Outlined" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.OpenInNew">
+                        Apri la pagina · @(_variant == CodeVariant.Vulnerable ? "versione vulnerabile" : "versione corretta")
+                    </MudButton>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">
+                        Indirizzo, da incollare anche nella finestra in incognito: <code>@ManualPageUrl</code>
+                    </MudText>
+                }
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="7">
+            <MudPaper Outlined="true" Class="pa-4" Style="height:100%">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">
+                    <b>@(_variant == CodeVariant.Vulnerable ? "Dove guardare nel codice" : "Cosa cambia nel codice")</b>
+                </MudText>
+                <CodePanel Location="@(_variant == CodeVariant.Vulnerable ? _case.VulnerableCode : _case.SecureCode)"
+                           Tone="@(_variant == CodeVariant.Vulnerable ? "bad" : "good")" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">
+                    Metti un breakpoint nel file indicato e premi "@RunButtonText": Visual Studio si ferma lì.
+                </MudText>
+                <MudButton Variant="Variant.Text" Size="Size.Small" Class="mt-2 px-0" OnClick="() => _compare = !_compare">
+                    @(_compare ? "Nascondi il confronto" : "Confronta le due versioni")
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @if (_compare)
+    {
+        <MudGrid Spacing="3" Class="mt-1">
+            <MudItem xs="12" md="6"><CodePanel Location="_case.VulnerableCode" Tone="bad" /></MudItem>
+            <MudItem xs="12" md="6"><CodePanel Location="_case.SecureCode" Tone="good" /></MudItem>
+        </MudGrid>
+    }
+
+    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-4">
+        Test automatici di questo caso: <code>@_case.TestClass</code> (Esplora test di Visual Studio, oppure <code>dotnet test</code>).
+    </MudText>
+}
+
+@code {
+    [Parameter] public string ChapterSlug { get; set; } = "";
+    [Parameter] public string CaseSlug { get; set; } = "";
+
+    private ILabCase? _case;
+    private CodeVariant _variant = CodeVariant.Vulnerable;
+    private AttackRun? _run;
+    private bool _running;
+    private bool _compare;
+    private List<BreadcrumbItem> _breadcrumbs = [];
+
+    // La scritta del pulsante segue la versione scelta con l'interruttore.
+    private string RunButtonText => _variant == CodeVariant.Vulnerable ? "Prova codice vulnerabile" : "Prova codice corretto";
+
+    // Con quale utente entra la prova automatica: non è quello scelto nella tendina in alto.
+    private string LabUsersText
+    {
+        get
+        {
+            if (_case!.LabUsers.Count == 0)
+                return "Questa prova non entra con nessun utente: l'utente scelto in alto non conta.";
+            var names = _case.LabUsers
+                .Select(username => SeedData.Users.Single(u => u.Username == username))
+                .Select(u => $"{u.DisplayName} ({Labels.Role(u.Role).ToLowerInvariant()})");
+            return $"Questa prova entra da sola come {string.Join(" e ", names)}, qualunque sia l'utente scelto in alto.";
+        }
+    }
+
+    // L'indirizzo della pagina da provare a mano, nella versione scelta con l'interruttore.
+    private string ManualPageUrl => $"{LabContext.BasePath(_case!.Chapter, _variant)}/{_case.ManualPage}";
+
+    protected override void OnParametersSet()
+    {
+        var chapter = ChapterCatalog.FindBySlug(ChapterSlug);
+        _case = chapter is null ? null : Registry.Find(chapter.Number, CaseSlug);
+        // Se la versione vulnerabile non è disponibile, si parte dalla versione corretta.
+        if (_case is { VulnerableAvailable: false })
+            _variant = CodeVariant.Secure;
+        _breadcrumbs =
+        [
+            new("Laboratorio", "/lab"),
+            new($"Capitolo {chapter?.Number}", $"/lab/{ChapterSlug}"),
+            new(_case?.Title ?? "", null, disabled: true),
+        ];
+    }
+
+    private void Select(CodeVariant variant)
+    {
+        _variant = variant;
+        _run = null;   // il risultato precedente riguardava l'altra versione
+    }
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        _run = null;
+        _run = await Runner.RunAsync(_case!, _variant);
+        _running = false;
+        if (_run.Outcome is AttackOutcome.Succeeded or AttackOutcome.Blocked)
+            await Progress.MarkAsync(_case!, _variant);
+    }
+}
