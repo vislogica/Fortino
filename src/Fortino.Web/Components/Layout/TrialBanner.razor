@@ -1,0 +1,60 @@
+@* La fascia della prova a mano in corso: ricorda sempre quale caso e quale versione del codice
+   stanno rispondendo, mostra di nuovo i passi e permette di chiudere la prova. *@
+@inject LabRegistry Registry
+
+@if (_case is not null && _instructions is not null)
+{
+    var vulnerable = Trial.Current!.Variant == CodeVariant.Vulnerable;
+    <div class="fortino-trial-banner @(vulnerable ? "is-vulnerable" : "is-secure")">
+        <div class="d-flex align-center flex-wrap gap-2">
+            <MudIcon Icon="@Icons.Material.Outlined.Science" Size="Size.Small" />
+            <span>
+                <b>Prova in corso</b> · @_case.BookReference · @_case.Title ·
+                <b>@(vulnerable ? "versione vulnerabile" : "versione corretta")</b>
+            </span>
+            <MudSpacer />
+            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Inherit"
+                       OnClick="() => _showSteps = !_showSteps">
+                @(_showSteps ? "Nascondi i passi" : "Mostra i passi")
+            </MudButton>
+            <form method="post" action="/lab/prova/fine" class="fortino-menu-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="Done" value="true" />
+                <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary">
+                    Ho fatto la prova
+                </MudButton>
+            </form>
+            <form method="post" action="/lab/prova/fine" class="fortino-menu-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="Done" value="false" />
+                <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Variant="Variant.Text" Color="Color.Inherit">
+                    Interrompi
+                </MudButton>
+            </form>
+        </div>
+        @if (_showSteps)
+        {
+            <div class="fortino-trial-banner-steps">
+                <TrialInstructionsView Instructions="_instructions" />
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
+
+    private ILabCase? _case;
+    private TrialInstructions? _instructions;
+    private bool _showSteps;
+
+    protected override void OnParametersSet()
+    {
+        var current = Trial?.Current;
+        if (current is null) return;
+        _case = Registry.Find(current.Chapter, current.CaseSlug);
+        var trial = _case?.Trial;
+        if (trial is null) return;
+        _instructions = current.Variant == CodeVariant.Vulnerable ? trial.Vulnerable : trial.Secure;
+    }
+}

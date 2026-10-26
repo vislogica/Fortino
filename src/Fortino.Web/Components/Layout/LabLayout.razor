@@ -1,0 +1,23 @@
+@* Il layout del Laboratorio: la pagina "fuori" dall'applicazione, da cui il lettore sceglie
+   la prova. Non ha il menu del gestionale, perché qui non si è ancora entrati. *@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="@Theme.FortinoTheme.Default" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Dense="true" Class="fortino-appbar">
+        <img src="favicon.svg" alt="" width="22" height="22" />
+        <MudText Typo="Typo.subtitle1" Class="ml-2"><b>Laboratorio</b> · A prova di attacco</MudText>
+        <MudSpacer />
+        <MudButton Href="/lab" Size="Size.Small" Variant="Variant.Text" Color="Color.Primary">Tutti i capitoli</MudButton>
+    </MudAppBar>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>

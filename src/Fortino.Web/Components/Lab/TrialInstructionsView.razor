@@ -1,0 +1,40 @@
+@* Le istruzioni di una versione: i passi numerati, cosa deve succedere, cosa dimostra e dove
+   fermarsi con il debugger. Si usa nella pagina del capitolo e nella fascia della prova in corso. *@
+
+<ol class="fortino-trial-steps">
+    @foreach (var step in Instructions.Steps)
+    {
+        <li><TrialText Text="@step" /></li>
+    }
+</ol>
+
+<MudText Typo="Typo.subtitle2" Class="mt-3">Cosa deve succedere</MudText>
+<MudText Typo="Typo.body2"><TrialText Text="@Instructions.Expected" /></MudText>
+
+<MudText Typo="Typo.subtitle2" Class="mt-3">Cosa dimostra</MudText>
+<MudText Typo="Typo.body2"><TrialText Text="@Instructions.Proves" /></MudText>
+
+@if (ShowBreakpoint)
+{
+    <div class="fortino-trial-debug mt-3">
+        <MudText Typo="Typo.subtitle2">Seguire la richiesta con il debugger</MudText>
+        <MudText Typo="Typo.body2">
+            Avvia Fortino da Visual Studio con il debug (F5). Apri
+            <code class="fortino-trial-code">@Instructions.Breakpoint.File</code> e metti un punto di
+            interruzione (F9) <TrialText Text="@Instructions.Breakpoint.Line" />.
+            Rifai l'ultimo passo: Visual Studio si ferma lì. Avanza una riga alla volta con F10 e guarda
+            nella finestra <i>Variabili locali</i>:
+        </MudText>
+        <ul class="fortino-trial-watch">
+            @foreach (var watch in Instructions.Breakpoint.Watch)
+            {
+                <li><TrialText Text="@watch" /></li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public TrialInstructions Instructions { get; set; } = default!;
+    [Parameter] public bool ShowBreakpoint { get; set; } = true;
+}

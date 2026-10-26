@@ -1,4 +1,6 @@
 @page "/lab/{ChapterSlug}"
+@layout Layout.LabLayout
+@attribute [AllowAnonymous]
 @inject LabRegistry Registry
 @inject LabProgressStore Progress
 
@@ -12,35 +14,103 @@ else
     <MudBreadcrumbs Items="_breadcrumbs" Class="px-0 pt-0" />
     <MudText Typo="Typo.h5" Class="mb-4">Capitolo @_chapter.Number · @_chapter.Title</MudText>
 
+    @if (_justDone is not null)
+    {
+        <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mb-4">@_justDone</MudAlert>
+    }
+
     @foreach (var labCase in Registry.ForChapter(_chapter.Number))
     {
-        // Il pulsante diventa verde quando il caso è stato provato su entrambe le versioni
-        // (o solo su quella corretta, se la vulnerabile non c'è).
-        var complete = LabProgressStore.IsComplete(_done, labCase);
-        <MudPaper Outlined="true" Class="pa-4 mb-3">
-            <div class="d-flex align-center">
-                <div>
-                    <MudText Typo="Typo.subtitle1"><b>@labCase.Title</b></MudText>
-                    <MudText Typo="Typo.body2">@labCase.Summary</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@labCase.BookReference · @labCase.Owasp</MudText>
+        if (labCase.Trial is null)
+        {
+            // Caso non ancora rifatto con la prova a mano: si prova con il pulsante automatico.
+            // Il pulsante diventa verde quando il caso è stato provato su entrambe le versioni
+            // (o solo su quella corretta, se la vulnerabile non c'è).
+            var complete = LabProgressStore.IsComplete(_done, labCase);
+            <MudPaper Outlined="true" Class="pa-4 mb-3">
+                <div class="d-flex align-center">
+                    <div>
+                        <MudText Typo="Typo.subtitle1"><b>@labCase.Title</b></MudText>
+                        <MudText Typo="Typo.body2">@labCase.Summary</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@labCase.BookReference · @labCase.Owasp</MudText>
+                    </div>
+                    <MudSpacer />
+                    <MudButton Href="@($"/lab/{ChapterSlug}/{labCase.Slug}")" Variant="Variant.Filled" Size="Size.Small"
+                               Color="@(complete ? Color.Success : Color.Primary)"
+                               StartIcon="@(complete ? Icons.Material.Filled.Check : null)">
+                        @(complete ? "Provato" : "Prova")
+                    </MudButton>
                 </div>
-                <MudSpacer />
-                <MudButton Href="@($"/lab/{ChapterSlug}/{labCase.Slug}")" Variant="Variant.Filled" Size="Size.Small"
-                           Color="@(complete ? Color.Success : Color.Primary)"
-                           StartIcon="@(complete ? Icons.Material.Filled.Check : null)">
-                    @(complete ? "Provato" : "Prova")
-                </MudButton>
-            </div>
-        </MudPaper>
+            </MudPaper>
+        }
+        else
+        {
+            // Caso con la prova a mano: un riquadro per la versione vulnerabile e uno per quella corretta.
+            <MudPaper Outlined="true" Class="pa-4 mb-5">
+                <MudText Typo="Typo.h6">@labCase.Title</MudText>
+                <MudText Typo="Typo.body2" Class="mt-1">@labCase.Summary</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Libro: @labCase.BookReference · @labCase.Owasp · ISO 27001 @labCase.Iso27001
+                </MudText>
+
+                <MudGrid Spacing="3" Class="mt-2">
+                    @foreach (var variant in new[] { CodeVariant.Vulnerable, CodeVariant.Secure })
+                    {
+                        var vulnerable = variant == CodeVariant.Vulnerable;
+                        var instructions = vulnerable ? labCase.Trial.Vulnerable : labCase.Trial.Secure;
+                        var tried = _done.Contains(LabRegistry.ProgressKey(labCase, variant));
+                        <MudItem xs="12" md="6">
+                            <div class="fortino-trial-box @(vulnerable ? "is-vulnerable" : "is-secure")">
+                                <div class="d-flex align-center mb-2">
+                                    <MudText Typo="Typo.subtitle1">
+                                        <b>@(vulnerable ? "Versione vulnerabile" : "Versione corretta")</b>
+                                    </MudText>
+                                    <MudSpacer />
+                                    @if (tried)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Check">Provata</MudChip>
+                                    }
+                                </div>
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    Il pulsante in fondo ti porta alla pagina di accesso di Fortino. Entra come
+                                    <code class="fortino-trial-code">@labCase.Trial.Username</code> (@UserName(labCase.Trial.Username)),
+                                    password <code class="fortino-trial-code">@SeedData.DemoPassword</code>, poi segui i passi.
+                                    Li ritrovi anche nella fascia in alto, dentro l'applicazione.
+                                </MudText>
+
+                                <TrialInstructionsView Instructions="instructions" />
+
+                                <form method="post" action="/lab/prova/inizia" class="mt-4">
+                                    <AntiforgeryToken />
+                                    <input type="hidden" name="Chapter" value="@labCase.Chapter" />
+                                    <input type="hidden" name="CaseSlug" value="@labCase.Slug" />
+                                    <input type="hidden" name="Variant" value="@variant" />
+                                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                                               Color="@(vulnerable ? Color.Error : Color.Success)"
+                                               StartIcon="@Icons.Material.Filled.Login">
+                                        @(vulnerable ? "Inizia la prova sulla versione vulnerabile" : "Inizia la prova sulla versione corretta")
+                                    </MudButton>
+                                </form>
+                            </div>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+        }
     }
 }
 
 @code {
     [Parameter] public string ChapterSlug { get; set; } = "";
 
+    // Arrivano da "Ho fatto la prova" nella fascia della prova in corso (vedi /lab/prova/fine).
+    [SupplyParameterFromQuery(Name = "provato")] public string? DoneCase { get; set; }
+    [SupplyParameterFromQuery(Name = "versione")] public string? DoneVariant { get; set; }
+
     private ChapterCatalog.ChapterInfo? _chapter;
     private List<BreadcrumbItem> _breadcrumbs = [];
     private HashSet<string> _done = [];
+    private string? _justDone;
 
     protected override void OnParametersSet()
     {
@@ -52,7 +122,22 @@ else
     {
         // Il browser è raggiungibile solo dopo il primo disegno della pagina.
         if (!firstRender) return;
+        await MarkFinishedTrialAsync();
         _done = await Progress.LoadAsync();
         StateHasChanged();
     }
+
+    // Segna come fatta la prova appena chiusa con "Ho fatto la prova".
+    private async Task MarkFinishedTrialAsync()
+    {
+        if (_chapter is null || DoneCase is null) return;
+        var labCase = Registry.Find(_chapter.Number, DoneCase);
+        if (labCase is null || !Enum.TryParse<CodeVariant>(DoneVariant, out var variant)) return;
+        await Progress.MarkAsync(labCase, variant);
+        _justDone = $"Prova segnata come fatta: {labCase.BookReference}, " +
+                    (variant == CodeVariant.Vulnerable ? "versione vulnerabile." : "versione corretta.");
+    }
+
+    private static string UserName(string username) =>
+        SeedData.Users.Where(u => u.Username == username).Select(u => u.DisplayName).FirstOrDefault() ?? username;
 }

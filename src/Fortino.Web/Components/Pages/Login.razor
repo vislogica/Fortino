@@ -22,6 +22,15 @@
             </MudAlert>
         }
 
+        @if (_trialCase?.Trial is not null)
+        {
+            @* Prova a mano del Laboratorio: chi deve entrare e con quale versione del codice. *@
+            <MudAlert Severity="@(_trialVulnerable ? Severity.Error : Severity.Success)" Dense="true" Class="mb-4">
+                <b>Prova: @_trialCase.BookReference, @(_trialVulnerable ? "versione vulnerabile" : "versione corretta").</b><br />
+                Entra come <code>@_trialCase.Trial.Username</code> (@_trialUserName), password <code>@SeedData.DemoPassword</code>.
+            </MudAlert>
+        }
+
         @if (Error is not null)
         {
             @* Il testo è fisso: dall'indirizzo arriva solo un codice (capitolo 15). *@
@@ -43,10 +52,32 @@
         <MudText Typo="Typo.caption" Class="mt-6 d-block mud-text-secondary">
             Utenti dimostrativi: anna, mario, verdi, lumen. La password è nel README del progetto.
         </MudText>
+        <MudButton Href="/lab" Variant="Variant.Text" Size="Size.Small" Class="mt-2 px-0"
+                   StartIcon="@Icons.Material.Outlined.Science">
+            Torna al Laboratorio
+        </MudButton>
     </MudPaper>
 </div>
 
+@inject LabRegistry Registry
+
 @code {
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
+
+    private ILabCase? _trialCase;
+    private bool _trialVulnerable;
+    private string _trialUserName = "";
+
+    protected override void OnParametersSet()
+    {
+        var current = Trial?.Current;
+        if (current is null) return;
+        _trialCase = Registry.Find(current.Chapter, current.CaseSlug);
+        _trialVulnerable = current.Variant == CodeVariant.Vulnerable;
+        var username = _trialCase?.Trial?.Username;
+        _trialUserName = SeedData.Users.Where(u => u.Username == username).Select(u => u.DisplayName).FirstOrDefault() ?? "";
+    }
+
     [SupplyParameterFromQuery(Name = "error")] public string? Error { get; set; }
     [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
 

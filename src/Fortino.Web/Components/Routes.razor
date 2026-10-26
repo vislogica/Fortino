@@ -1,3 +1,4 @@
+<CascadingValue Value="_trial" IsFixed="true">
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
@@ -15,3 +16,14 @@
         </LayoutView>
     </NotFound>
 </Router>
+</CascadingValue>
+
+@code {
+    // Il cookie della prova a mano in corso (vedi App.razor): diventa un valore a cascata che
+    // ogni pagina può leggere per scegliere la versione del codice.
+    [Parameter] public string? TrialCookie { get; set; }
+
+    private LabTrialState _trial = new(null);
+
+    protected override void OnParametersSet() => _trial = new LabTrialState(ActiveTrial.Parse(TrialCookie));
+}

@@ -42,6 +42,18 @@ Una volta dentro, il menu in alto a destra (**Entra come…**) cambia utente sen
 Esiste solo in questa applicazione dimostrativa ed è attivo solo in ambiente Development.
 
 ## Come si usa il Laboratorio
+Il Laboratorio si apre anche senza essere entrati: https://localhost:5001/lab
+
+**Prova a mano** (i casi già rifatti in questa versione, a partire dal capitolo 1):
+1. Apri un capitolo. Ogni caso ha due riquadri, **Versione vulnerabile** e **Versione corretta**, con i
+   passi da fare, cosa deve succedere e dove mettere il punto di interruzione nel debugger.
+2. Premi **Inizia la prova**: esci dall'applicazione e arrivi alla pagina di accesso. Entra con l'utente
+   indicato nel riquadro.
+3. Fai i passi a mano, come farebbe un attaccante (per esempio cambiando l'indirizzo nella barra).
+   La fascia in alto ricorda sempre quale caso e quale versione del codice stanno rispondendo.
+4. Alla fine premi **Ho fatto la prova** nella fascia: torni al capitolo e la prova risulta fatta.
+
+**Prova automatica** (i casi non ancora rifatti):
 1. Apri **Laboratorio** dal menu e scegli un capitolo.
 2. Scegli un caso. L'interruttore in alto sceglie la versione: **Vulnerabile** o **Corretto**.
 3. Premi **Prova codice vulnerabile** o **Prova codice corretto** (la scritta segue l'interruttore):

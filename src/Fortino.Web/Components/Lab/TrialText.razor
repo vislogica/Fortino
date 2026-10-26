@@ -1,0 +1,20 @@
+@* Un testo delle istruzioni: le parti tra `apici inversi` diventano codice (indirizzi, valori da scrivere). *@
+@for (var i = 0; i < _parts.Length; i++)
+{
+    if (i % 2 == 1)
+    {
+        <code class="fortino-trial-code">@_parts[i]</code>
+    }
+    else
+    {
+        @_parts[i]
+    }
+}
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = "";
+
+    private string[] _parts = [];
+
+    protected override void OnParametersSet() => _parts = Text.Split('`');
+}

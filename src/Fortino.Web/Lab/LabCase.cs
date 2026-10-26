@@ -34,6 +34,10 @@ public interface ILabCase
     // Le istruzioni della prova a mano, mostrate sopra il pulsante che apre ManualPage.
     string? ManualHint => null;
 
+    // La prova a mano: il lettore entra nell'applicazione e fa l'attacco da solo. Quando c'è,
+    // la pagina del capitolo mostra i passi delle due versioni e il pulsante "Inizia la prova".
+    ManualTrial? Trial => null;
+
     // Gli utenti (username) con cui la prova automatica entra da sola, qualunque sia l'utente
     // scelto nella tendina in alto. Vuoto: la prova non entra con nessun utente.
     IReadOnlyList<string> LabUsers => [];

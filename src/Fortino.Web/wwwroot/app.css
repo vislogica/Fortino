@@ -58,3 +58,43 @@
 
 /* Pulsanti con le maiuscole normali, non tutto maiuscolo. */
 .mud-button-root { text-transform: none !important; }
+
+/* Prova a mano del Laboratorio: riquadri della pagina del capitolo e fascia dentro l'applicazione. */
+.fortino-trial-box {
+    height: 100%;
+    padding: 16px;
+    border: 1px solid var(--mud-palette-lines-default);
+    border-top-width: 4px;
+    border-radius: 6px;
+    background: var(--mud-palette-surface);
+}
+.fortino-trial-box.is-vulnerable { border-top-color: var(--mud-palette-error); }
+.fortino-trial-box.is-secure { border-top-color: var(--mud-palette-success); }
+
+.fortino-trial-steps { margin: 4px 0 0 0; padding-left: 22px; }
+.fortino-trial-steps li { margin-bottom: 6px; line-height: 1.5; font-size: 0.875rem; }
+.fortino-trial-watch { margin: 4px 0 0 0; padding-left: 20px; font-size: 0.875rem; }
+.fortino-trial-code {
+    font-family: Consolas, "Cascadia Mono", monospace;
+    font-size: 0.85em;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.06);
+    white-space: nowrap;
+}
+.fortino-trial-debug {
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.035);
+}
+
+.fortino-trial-banner {
+    margin-bottom: 20px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    border-left: 5px solid;
+    font-size: 0.9rem;
+}
+.fortino-trial-banner.is-vulnerable { border-left-color: var(--mud-palette-error); background: rgba(211, 47, 47, 0.07); }
+.fortino-trial-banner.is-secure { border-left-color: var(--mud-palette-success); background: rgba(46, 125, 50, 0.07); }
+.fortino-trial-banner-steps { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--mud-palette-lines-default); }

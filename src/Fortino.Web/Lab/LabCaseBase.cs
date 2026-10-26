@@ -24,6 +24,8 @@ public abstract class LabCaseBase : ILabCase
 
     public virtual string? ManualHint => null;
 
+    public virtual ManualTrial? Trial => null;
+
     public virtual IReadOnlyList<string> LabUsers => [];
 
     public abstract Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct);

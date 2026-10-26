@@ -15,10 +15,21 @@
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveServer" TrialCookie="@_trialCookie" />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="@Assets["lab/ch11.js"]"></script>
 </body>
 
 </html>
+
+@code {
+    // Disponibile solo durante il primo disegno sul server, non nel circuito interattivo:
+    // per questo il cookie della prova si legge qui e si passa a Routes come parametro.
+    [CascadingParameter] private HttpContext? HttpContext { get; set; }
+
+    private string? _trialCookie;
+
+    protected override void OnInitialized() =>
+        _trialCookie = HttpContext?.Request.Cookies[ActiveTrial.CookieName];
+}
