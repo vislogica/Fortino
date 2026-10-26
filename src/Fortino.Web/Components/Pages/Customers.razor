@@ -1,25 +1,60 @@
 @page "/customers"
-@attribute [Authorize(Policy = Policies.Staff)]
-@inject FortinoQueries Queries
+@using Fortino.Web.Chapters.Ch01
+@inject Fortino.Web.Chapters.Ch01.Vulnerable.CustomerListReader VulnerableReader
+@inject Fortino.Web.Chapters.Ch01.Secure.CustomerListReader SecureReader
+
+@* L'elenco dei clienti, riservato allo staff. Il menu mostra la voce "Clienti" solo allo staff;
+   chi può davvero vedere l'elenco lo decide il codice che lo legge (caso 1.2 del Laboratorio). *@
 
 <PageTitle>Clienti · Fortino</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">Clienti</MudText>
 
-<MudDataGrid T="Customer" Items="_items" Dense="true" Hover="true" Elevation="0" Outlined="true">
-    <Columns>
-        <PropertyColumn Property="x => x.Name" Title="Ragione sociale" />
-        <PropertyColumn Property="x => x.VatNumber" Title="Partita IVA" />
-        <PropertyColumn Property="x => x.Email" Title="Email" />
-        <PropertyColumn Property="x => x.Address" Title="Indirizzo" />
-        <PropertyColumn Property="x => x.Iban" Title="IBAN" />
-        <TemplateColumn Title="Fido">
-            <CellTemplate>@Labels.Money(context.Item.CreditLimit)</CellTemplate>
-        </TemplateColumn>
-    </Columns>
-</MudDataGrid>
+@if (_result is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_result.AccessDenied)
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined">
+        <b>Accesso negato.</b> L'elenco dei clienti è riservato allo staff di Carta &amp; Co.
+    </MudAlert>
+}
+else
+{
+    <MudDataGrid T="CustomerRow" Items="_result.Customers" Dense="true" Hover="true" Elevation="0" Outlined="true">
+        <Columns>
+            <PropertyColumn Property="x => x.Name" Title="Ragione sociale" />
+            <PropertyColumn Property="x => x.VatNumber" Title="Partita IVA" />
+            <PropertyColumn Property="x => x.Email" Title="Email" />
+            <PropertyColumn Property="x => x.Address" Title="Indirizzo" />
+            <PropertyColumn Property="x => x.Iban" Title="IBAN" />
+            <TemplateColumn Title="Fido">
+                <CellTemplate>@Labels.Money(context.Item.CreditLimit)</CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
 
 @code {
-    private IReadOnlyList<Customer> _items = [];
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
 
-    protected override async Task OnInitializedAsync() => _items = await Queries.GetCustomersAsync();
+    private CustomerListResult? _result;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ClaimsPrincipal user = (await AuthState).User;
+
+        // Il Laboratorio decide quale versione del codice legge l'elenco (caso 1.2):
+        // fuori da una prova è sempre quella corretta.
+        CodeVariant variant = Trial.VariantFor(1, "function-level");
+        if (variant == CodeVariant.Vulnerable)
+        {
+            _result = await VulnerableReader.ReadAsync(user);
+        }
+        else
+        {
+            _result = await SecureReader.ReadAsync(user);
+        }
+    }
 }

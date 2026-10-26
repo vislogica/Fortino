@@ -1,18 +1,17 @@
 {
-  "Ch01.AccessControl/Secure/AccessApi.cs#funzione-corretto": [
-    "bool isStaff = isAdmin ",
-    " isOperator;",
+  "Ch01.AccessControl/Secure/CustomerListReader.cs#funzione-corretto": [
+    "bool isStaff = isAdmin || isOperator;",
     "if (!isStaff)"
   ],
-  "Ch01.AccessControl/Secure/AccessApi.cs#idor-corretto": [
+  "Ch01.AccessControl/Secure/OrderDetailReader.cs#idor-corretto": [
     "int? customerId = user.GetCustomerId();",
-    "OrderView? order = await Ch01Shared.OrderForCustomerAsync(factory, orderId, customerId.Value);"
+    "OrderDetail? order = await Ch01Shared.OrderForCustomerAsync(factory, orderId, customerId.Value);"
   ],
-  "Ch01.AccessControl/Vulnerable/AccessApi.cs#funzione-vulnerabile": [
-    "group.MapGet(\"/customers\", async (DbConnectionFactory factory) =>"
+  "Ch01.AccessControl/Vulnerable/CustomerListReader.cs#funzione-vulnerabile": [
+    "IReadOnlyList<CustomerRow> customers = await Ch01Shared.AllCustomersAsync(factory);"
   ],
-  "Ch01.AccessControl/Vulnerable/AccessApi.cs#idor-vulnerabile": [
-    "OrderView? order = await Ch01Shared.OrderByIdAsync(factory, orderId);"
+  "Ch01.AccessControl/Vulnerable/OrderDetailReader.cs#idor-vulnerabile": [
+    "OrderDetail? order = await Ch01Shared.OrderByIdAsync(factory, orderId);"
   ],
   "Ch02.Injection/Secure/InjectionApi.cs#sql-injection-corretto": [
     "string sql = \"SELECT Name, VatNumber FROM Customer WHERE Name LIKE @pattern;\";",

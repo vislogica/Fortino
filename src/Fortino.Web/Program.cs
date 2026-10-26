@@ -62,7 +62,15 @@ app.UseAntiforgery();
 app.MapStaticAssets().AllowAnonymous();
 app.MapAuthEndpoints();
 app.MapFortinoLab();
-app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode()
+    // Il canale del circuito interattivo (/_blazor) deve aprirsi anche per chi non è entrato:
+    // le pagine del Laboratorio sono pubbliche. Le pagine dell'applicazione restano protette
+    // dalle loro regole, controllate sia dal server sia da AuthorizeRouteView.
+    .Add(endpoint =>
+    {
+        if (endpoint is RouteEndpointBuilder route && route.RoutePattern.RawText?.StartsWith("/_blazor") == true)
+            endpoint.Metadata.Add(new Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute());
+    });
 
 app.Run();
 

@@ -1,0 +1,38 @@
+@page "/portal/profile"
+@attribute [Authorize(Policy = Policies.Customer)]
+@inject FortinoQueries Queries
+
+@* L'anagrafica del cliente collegato: il cliente vede solo i propri dati. *@
+
+<PageTitle>La mia anagrafica · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">La mia anagrafica</MudText>
+
+@if (_customer is not null)
+{
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudSimpleTable Dense="true" Elevation="0">
+            <tbody>
+                <tr><td style="width:160px"><b>Ragione sociale</b></td><td>@_customer.Name</td></tr>
+                <tr><td><b>Partita IVA</b></td><td>@_customer.VatNumber</td></tr>
+                <tr><td><b>Email</b></td><td>@_customer.Email</td></tr>
+                <tr><td><b>Indirizzo</b></td><td>@_customer.Address</td></tr>
+                <tr><td><b>IBAN</b></td><td>@_customer.Iban</td></tr>
+                <tr><td><b>Fido</b></td><td>@Labels.Money(_customer.CreditLimit)</td></tr>
+            </tbody>
+        </MudSimpleTable>
+    </MudPaper>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private Customer? _customer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Il cliente si legge dall'utente collegato, mai dall'indirizzo della pagina.
+        var customerId = (await AuthState).User.GetCustomerId();
+        if (customerId is null) return;
+        _customer = await Queries.GetCustomerAsync(customerId.Value);
+    }
+}

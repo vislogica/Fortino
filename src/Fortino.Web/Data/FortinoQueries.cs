@@ -27,6 +27,12 @@ public sealed class FortinoQueries(DbConnectionFactory factory)
         return (await db.QueryAsync<Customer>("SELECT * FROM Customer ORDER BY Name;")).AsList();
     }
 
+    public async Task<Customer?> GetCustomerAsync(int customerId)
+    {
+        await using var db = await factory.OpenAsync();
+        return await db.QuerySingleOrDefaultAsync<Customer>("SELECT * FROM Customer WHERE Id = @customerId;", new { customerId });
+    }
+
     public async Task<IReadOnlyList<Order>> GetOrdersAsync()
     {
         await using var db = await factory.OpenAsync();

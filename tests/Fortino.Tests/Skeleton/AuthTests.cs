@@ -82,7 +82,7 @@ public class AuthTests(FortinoFactory factory) : IClassFixture<FortinoFactory>
     {
         var client = await factory.CreateClientAsAsync("verdi");
 
-        var response = await client.GetAsync("/customers");
+        var response = await client.GetAsync("/orders");
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Contains("/access-denied", response.Headers.Location!.ToString());
