@@ -25,7 +25,8 @@ public sealed class JsInvokableCase : Ch11Case
         "Dopo l'accesso sei nel portale come Ottica Lumen, nella pagina «I miei ordini in bozza» (`/portal/quantities`). La tabella mostra le righe dei tuoi ordini, con il numero di riga e un cursore da 1 a 99.",
         "La pagina lascia l'oggetto che cambia le quantità raggiungibile dalla console come `window.fortinoCh11.editor`. Apri la console (F12 › Console) e chiamalo su una riga di un ALTRO cliente (la riga 9, sedie nell'ordine di Ferramenta Nord) con una quantità che il cursore non permette: `window.fortinoCh11.editor.invokeMethodAsync('SetQuantity', 9, 600)`",
         "Poi sulla tua riga 8 (toner) con una quantità negativa: `window.fortinoCh11.editor.invokeMethodAsync('SetQuantity', 8, -20)`",
-        "Premi «Rileggi dal database».",
+        "Premi «Rileggi dal database»: vedi la tua riga 8.",
+        "La riga 9 è di un altro cliente, quindi il tuo portale non la mostra. Per vederla, dal menu utente in alto a destra scegli «Entra come…» › anna (Amministratore), poi Ordini e apri ORD-2026-0106 (Ferramenta Nord). Non premere «Ripristina i dati» prima, o le modifiche spariscono.",
     ];
 
     public override ManualTrial Trial => new(
@@ -33,7 +34,7 @@ public sealed class JsInvokableCase : Ch11Case
         StartPath: "/portal/quantities",
         Vulnerable: new TrialInstructions(
             Steps,
-            Expected: "La tua riga 8 diventa -20, una quantità che il cursore non permette. La chiamata sulla riga 9 (di un altro cliente) non dà errore: anche quella è stata cambiata a 600, come si vede entrando nel gestionale.",
+            Expected: "La tua riga 8 diventa -20, una quantità che il cursore non permette. La chiamata sulla riga 9 (di un altro cliente) non dà errore: aprendo ORD-2026-0106 come anna, la riga delle sedie è a 600 e il totale dell'ordine è 113.400,00 € (invece di 1.134,00 €).",
             Proves: "Il metodo [JSInvokable] si fida di quello che arriva dal browser: accetta qualunque riga (anche di un altro cliente) e qualunque quantità (anche negativa), perché la pagina mostrava solo valori leciti.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch11.BlazorServer/Vulnerable/QuantityEditor.cs",
@@ -44,7 +45,7 @@ public sealed class JsInvokableCase : Ch11Case
                 ])),
         Secure: new TrialInstructions(
             Steps,
-            Expected: "`invokeMethodAsync` restituisce `false` tutte e due le volte e nessuna quantità cambia: la riga 8 resta com'era e la riga 9 non viene toccata.",
+            Expected: "`invokeMethodAsync` restituisce `false` tutte e due le volte e nessuna quantità cambia: la riga 8 resta com'era e, aprendo ORD-2026-0106 come anna, è ancora 6 sedie (totale 1.134,00 €).",
             Proves: "La versione corretta controlla la quantità (da 1 a 99) e cambia la riga solo se appartiene a un ordine in bozza del cliente di questo circuito, letto sul server e non dal browser.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch11.BlazorServer/Secure/QuantityEditor.cs",
