@@ -39,13 +39,19 @@ public sealed class LabProgressStore(ProtectedLocalStorage storage)
             return false;
         }
 
-        // PASSO 2: se il caso non ha la versione vulnerabile, basta la prova sulla versione corretta.
+        // PASSO 2: capitolo di processo (nessun attacco da lanciare): basta aver segnato il controllo.
+        if (labCase.IsProcess)
+        {
+            return true;
+        }
+
+        // PASSO 3: se il caso non ha la versione vulnerabile, basta la prova sulla versione corretta.
         if (!labCase.VulnerableAvailable)
         {
             return true;
         }
 
-        // PASSO 3: altrimenti serve anche la prova sulla versione vulnerabile.
+        // PASSO 4: altrimenti serve anche la prova sulla versione vulnerabile.
         bool vulnerableTried = done.Contains(LabRegistry.ProgressKey(labCase, CodeVariant.Vulnerable));
         return vulnerableTried;
     }

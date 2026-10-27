@@ -17,6 +17,23 @@ public sealed class SecretInCodeCase : Ch06Case
     public override CodeLocation VulnerableCode => new("Ch06.Secrets/Vulnerable/SecretApi.cs", "segreto-nel-codice-vulnerabile");
     public override CodeLocation SecureCode => new("Ch06.Secrets/Secure/SecretApi.cs", "segreto-da-configurazione");
 
+    // Capitolo "di processo": non c'è un attacco da lanciare nell'applicazione. Si cercano i segreti
+    // scritti nel codice con un comando e si imparano le abitudini per tenerli fuori (vedi i passi).
+    public override bool IsProcess => true;
+
+    public override string? ProcessCommand =>
+        "git grep -n -iE \"api[_-]?key|password|secret|token|connectionstring\" -- \"*.cs\" \"*.json\"";
+
+    public override IReadOnlyList<string> ProcessSteps =>
+    [
+        "Apri un terminale nella cartella del progetto Fortino.",
+        "Cerca i segreti scritti nel codice con il comando qui sopra: elenca le righe dove compaiono parole come password, secret, token, chiave.",
+        "Tra i risultati trovi la chiave di firma nel codice: src/Fortino.Web/Chapters/Ch06.Secrets/Vulnerable/SecretApi.cs, SigningKey = \"k3y-firma-token-fortino-2026\". Chi legge il repository la conosce e può firmare da sé token falsi.",
+        "Confronta con la versione corretta, Secure/SecretApi.cs: nel codice c'è solo il nome dell'impostazione (Fortino:SigningKey), il valore vive fuori dal codice.",
+        "Tieni un segreto fuori dal codice, in sviluppo, con gli user-secrets: nel progetto Fortino.Web esegui dotnet user-secrets init e poi dotnet user-secrets set \"Fortino:SigningKey\" \"una-chiave-a-caso\". Il valore finisce in un file fuori dalla cartella del progetto, non in Git.",
+        "Ricorda la cronologia: un segreto già finito in Git resta nel passato anche se lo cancelli. Va considerato compromesso e ruotato (sostituito con uno nuovo), non solo rimosso.",
+    ];
+
     // La chiave che l'attaccante legge nel codice sorgente (è la costante della versione vulnerabile).
     private const string KeyReadFromSource = "k3y-firma-token-fortino-2026";
 

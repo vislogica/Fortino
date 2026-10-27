@@ -41,16 +41,13 @@ else
                 </MudText>
 
                 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-3">
-                    Qui non c'è un attacco da lanciare nell'applicazione: la vulnerabilità sta in un pacchetto
-                    non aggiornato e si scopre con un comando.
+                    Capitolo di processo: qui non c'è un attacco da lanciare nell'applicazione. Si impara
+                    seguendo i passi qui sotto (comandi nel terminale e controlli nel codice).
                 </MudAlert>
 
                 @if (labCase.ProcessCommand is not null)
                 {
-                    <MudText Typo="Typo.body2" Class="mt-3 mb-1">
-                        Apri un terminale nella cartella <code class="fortino-trial-code">samples/Ch05.SupplyChain</code>
-                        del progetto ed esegui:
-                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mt-3 mb-1">Il comando principale della prova:</MudText>
                     <pre class="fortino-step-detail">@labCase.ProcessCommand</pre>
                 }
 

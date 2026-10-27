@@ -11,10 +11,22 @@ public sealed class DataProtectionKeysCase : Ch06Case
     public override string Slug => "data-protection-keys";
     public override string Title => "Chiavi di Data Protection effimere";
     public override string Summary =>
-        "Un token protetto viene riletto dopo un riavvio simulato: con le chiavi non persistite salta, con le chiavi salvate in un luogo stabile sopravvive.";
+        "Le chiavi che firmano i cookie di sessione: dove le salva ASP.NET Core, cosa succede se cambiano a un riavvio, come fissarle in un luogo stabile e condiviso.";
     public override string BookReference => "capitolo 6, caso 6.2";
     public override CodeLocation VulnerableCode => new("Ch06.Secrets/Vulnerable/KeyRingConfig.cs", "chiavi-effimere-vulnerabile");
     public override CodeLocation SecureCode => new("Ch06.Secrets/Secure/DataProtectionConfig.cs", "chiavi-persistenti");
+
+    // Capitolo "di processo": si guarda dove vivono le chiavi e si osserva l'effetto di un riavvio.
+    public override bool IsProcess => true;
+
+    public override IReadOnlyList<string> ProcessSteps =>
+    [
+        "Avvia Fortino ed entra, per esempio come anna.",
+        "Apri la cartella dove ASP.NET Core salva le chiavi di Data Protection: su Windows %LOCALAPPDATA%\\ASP.NET\\DataProtection-Keys. Trovi dei file key-....xml: sono le chiavi che firmano il tuo cookie di sessione.",
+        "Riavvia Fortino e ricarica la pagina: resti collegato, perché le chiavi erano salvate su disco e non sono cambiate.",
+        "Simula il caso vulnerabile: ferma Fortino, rinomina quella cartella (come se le chiavi non ci fossero più), riavvia e ricarica. Ora sei stato buttato fuori: chiavi nuove, il vecchio cookie non vale più. È ciò che succede quando non c'è una posizione stabile, tipico nei container senza un volume dedicato.",
+        "Per fissare le chiavi in modo esplicito e condividerle tra più server, usa PersistKeysToFileSystem e SetApplicationName: è la versione corretta in src/Fortino.Web/Chapters/Ch06.Secrets/Secure/DataProtectionConfig.cs.",
+    ];
 
     public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
