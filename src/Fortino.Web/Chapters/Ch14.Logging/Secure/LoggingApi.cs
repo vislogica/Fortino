@@ -7,10 +7,11 @@ namespace Fortino.Web.Chapters.Ch14.Secure;
 // VERSIONE CORRETTA.
 public static class LoggingApi
 {
-    public static void Map(RouteGroupBuilder group, ILogger logger)
+    // Caso 14.1: registrazione di un tentativo di accesso. POST /login-attempt
+    public static void MapLoginAttempt(RouteGroupBuilder group, ILogger logger)
     {
         #region libro: segreti-nei-log-corretto
-        // Caso 14.1. Si registra l'evento utile (chi ha provato ad accedere), ma mai il segreto.
+        // Si registra l'evento utile (chi ha provato ad accedere), ma mai il segreto.
         // La password non si scrive nel registro in nessuna forma.
         group.MapPost("/login-attempt", (LoginAttemptRequest request) =>
         {
@@ -27,9 +28,13 @@ public static class LoggingApi
             return response;
         });
         #endregion
+    }
 
+    // Caso 14.2: disattivazione di un utente. POST /users/{userId}/deactivate
+    public static void MapDeactivate(RouteGroupBuilder group, ILogger logger)
+    {
         #region libro: audit-mancante-corretto
-        // Caso 14.2. L'operazione sensibile lascia una voce di audit: chi l'ha fatta, su chi, quando.
+        // L'operazione sensibile lascia una voce di audit: chi l'ha fatta, su chi, quando.
         group.MapPost("/users/{userId:int}/deactivate", async (int userId, ClaimsPrincipal user, DbConnectionFactory factory) =>
         {
             // PASSO 1: si disattiva l'utente.

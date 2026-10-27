@@ -1,35 +1,85 @@
+using System.Net;
+using System.Net.Http.Json;
+using Fortino.Web.Data;
+using Fortino.Web.Infrastructure;
 using Fortino.Web.Lab;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Fortino.Tests.Ch14;
 
 // Capitolo 14 — Log e monitoraggio.
-// Per ogni caso: sulla versione vulnerabile l'attacco riesce, su quella corretta viene bloccato.
-public class Ch14LoggingTests(FortinoFactory factory) : IClassFixture<FortinoFactory>
+// Ogni prova rifà quello che fa il lettore dalla console: inizia la prova, entra come Anna Rossi,
+// chiama l'indirizzo vero e guarda cosa è finito (o no) nel registro in memoria.
+public class Ch14LoggingTests
 {
-    public static TheoryData<string> Cases => ["secrets-in-log", "missing-audit"];
+    private const string Secret = "Segretissima-123";
 
-    [Theory]
-    [MemberData(nameof(Cases))]
-    public async Task Vulnerable_version_lets_the_attack_through(string slug) =>
-        Assert.True((await RunAsync(slug, CodeVariant.Vulnerable)).Outcome == AttackOutcome.Succeeded, slug);
-
-    [Theory]
-    [MemberData(nameof(Cases))]
-    public async Task Secure_version_blocks_the_attack(string slug) =>
-        Assert.True((await RunAsync(slug, CodeVariant.Secure)).Outcome == AttackOutcome.Blocked, slug);
-
-    // SafeLog oscura i campi segnati con [Sensitive] e lascia gli altri.
+    // 14.1 — la versione vulnerabile scrive la password in chiaro nel registro.
     [Fact]
-    public void SafeLog_hides_sensitive_fields() =>
-        Assert.Equal("LoginAttemptRequest { Username = lumen, Password = *** }",
-            Fortino.Web.Chapters.Ch14.Secure.SafeLog.Describe(new Fortino.Web.Chapters.Ch14.LoginAttemptRequest("lumen", "Segretissima-123")));
-
-    private async Task<AttackRun> RunAsync(string slug, CodeVariant variant)
+    public async Task Vulnerable_login_logs_the_password()
     {
-        _ = factory.Server;
-        using var scope = factory.Services.CreateScope();
-        var labCase = scope.ServiceProvider.GetRequiredService<LabRegistry>().Find(14, slug)!;
-        return await scope.ServiceProvider.GetRequiredService<LabCaseRunner>().RunAsync(labCase, variant);
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "secrets-in-log", CodeVariant.Vulnerable);
+
+        await anna.PostAsJsonAsync("/login-attempt", new { Username = "lumen", Password = Secret });
+
+        Assert.Contains(Log(factory), r => r.Message.Contains(Secret));
+    }
+
+    [Fact]
+    public async Task Secure_login_logs_the_event_but_not_the_password()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "secrets-in-log", CodeVariant.Secure);
+
+        await anna.PostAsJsonAsync("/login-attempt", new { Username = "lumen", Password = Secret });
+
+        var log = Log(factory);
+        Assert.DoesNotContain(log, r => r.Message.Contains(Secret));
+        Assert.Contains(log, r => r.Message.Contains("lumen"));
+    }
+
+    // 14.2 — la versione vulnerabile disattiva l'utente senza lasciare una voce di audit.
+    [Fact]
+    public async Task Vulnerable_deactivation_leaves_no_audit_trail()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "missing-audit", CodeVariant.Vulnerable);
+
+        using var response = await anna.PostAsync("/users/4/deactivate", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.DoesNotContain(Log(factory), r => r.Message.Contains("AUDIT"));
+    }
+
+    [Fact]
+    public async Task Secure_deactivation_writes_an_audit_entry()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "missing-audit", CodeVariant.Secure);
+
+        using var response = await anna.PostAsync("/users/4/deactivate", null);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Contains(Log(factory), r => r.Message.Contains("AUDIT") && r.Message.Contains("4"));
+    }
+
+    private static IReadOnlyList<LogRecord> Log(FortinoFactory factory) =>
+        factory.Services.GetRequiredService<InMemoryLogStore>().Snapshot();
+
+    private static async Task<HttpClient> StartTrialAsAnnaAsync(FortinoFactory factory, string caseSlug, CodeVariant variant)
+    {
+        var client = factory.CreateBrowserClient();
+        var token = await LabLogin.GetAntiforgeryTokenAsync(client);
+        using var start = await client.PostAsync("/lab/prova/inizia", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["Chapter"] = "14",
+            ["CaseSlug"] = caseSlug,
+            ["Variant"] = variant.ToString(),
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, start.StatusCode);
+        await LabLogin.LoginAsync(client, "anna", SeedData.DemoPassword);
+        return client;
     }
 }
