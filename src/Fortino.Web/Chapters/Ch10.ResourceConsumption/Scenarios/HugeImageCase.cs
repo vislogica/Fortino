@@ -1,65 +1,62 @@
-using Fortino.Web.Chapters.Ch10.Secure;
-using Fortino.Web.Chapters.Ch10.Vulnerable;
 using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch10.Scenarios;
 
 // Caso 10.1: un file piccolo dichiara dimensioni enormi e fa allocare al server tanta memoria.
+// Si prova dalla console: si manda un'intestazione PNG di 24 byte che dichiara 5000 × 5000 pixel.
 public sealed class HugeImageCase : Ch10Case
 {
     public override string Slug => "huge-image";
     public override string Title => "Immagine con dimensioni enormi";
     public override string Summary =>
-        "Un file di pochi byte che dichiara un'immagine enorme fa allocare al server una grande quantità di memoria. La versione corretta controlla le dimensioni prima di caricare.";
+        "Dalla console mandi un file immagine di 24 byte che dichiara 5000 × 5000 pixel: nella versione vulnerabile il server alloca decine di MB da pochi byte di input.";
     public override string BookReference => "capitolo 10, caso 10.1";
     public override CodeLocation VulnerableCode => new("Ch10.ResourceConsumption/Vulnerable/UnboundedImage.cs", "immagine-vulnerabile");
     public override CodeLocation SecureCode => new("Ch10.ResourceConsumption/Secure/ImageSizeGuard.cs", "limite-immagine-corretto");
 
-    private const int Width = 5000;    // oltre il limite della versione corretta (4000)
-    private const int Height = 5000;
+    private const string BuildAndSend =
+        "const b = new Uint8Array(24); b.set([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]); " +
+        "const be = (o,v) => { b[o]=v>>>24; b[o+1]=v>>>16&255; b[o+2]=v>>>8&255; b[o+3]=v&255; }; " +
+        "be(16,5000); be(20,5000); const f = new FormData(); f.append('file', new Blob([b], {type:'image/png'}), 'enorme.png'); " +
+        "fetch('/documents/check-image', {method:'POST', body:f}).then(r=>r.json()).then(console.log)";
 
-    public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel gestionale come operatore. Apri la console (F12 › Console).",
+        "Costruisci un'intestazione PNG di 24 byte che dichiara un'immagine di 5000 × 5000 pixel e mandala " +
+        "all'indirizzo che controlla le immagini: `" + BuildAndSend + "`",
+        "Guarda la risposta: `fileBytes` è 24, ma `declaredWidth` e `declaredHeight` sono 5000.",
+    ];
+
+    public override ManualTrial Trial => new(
+        Username: "mario",
+        StartPath: "/orders",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "La risposta ha `allocatedMB` intorno a 95: da 24 byte di file il server ha preparato in memoria una bitmap di circa 95 MB.",
+            Proves: "Il server si fida delle dimensioni dichiarate nel file e alloca la memoria corrispondente. Poche immagini del genere insieme esauriscono la memoria.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch10.ResourceConsumption/Vulnerable/UnboundedImage.cs",
+                Line: "sulla riga `byte[] bitmap = new byte[bytes];`, nella regione `immagine-vulnerabile`",
+                Watch:
+                [
+                    "`bytes` vale circa 100 milioni (5000 × 5000 × 4): è la memoria che si sta per allocare da 24 byte di input.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "La risposta ha `accepted` a false e `result` uguale a `TooManyPixels`, con `allocatedMB` assente: niente è stato allocato.",
+            Proves: "La versione corretta legge le dimensioni dichiarate dall'intestazione e le confronta con un limite, senza mai caricare l'immagine.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch10.ResourceConsumption/Secure/ImageSizeGuard.cs",
+                Line: "sulla riga `bool sizeIsValid = ...`, nella regione `limite-immagine-corretto`",
+                Watch:
+                [
+                    "`width` e `height` valgono 5000, oltre il limite di 4000: `sizeIsValid` è false e si rifiuta prima di allocare.",
+                ])));
+
+    public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
-        await context.ResetDataAsync(run, ct);
-
-        // Un'intestazione PNG di 24 byte che dichiara un'immagine di 5000 × 5000 pixel.
-        var header = PngHeader(Width, Height);
-        run.Log($"Viene inviato un file immagine di appena {header.Length} byte, che però dichiara {Width} × {Height} pixel.");
-
-        if (variant == CodeVariant.Vulnerable)
-        {
-            var allocated = UnboundedImage.AllocateBitmap(Width, Height);
-            run.Log($"Il server non controlla le dimensioni e prepara la bitmap: {allocated / (1024 * 1024)} MB allocati da {header.Length} byte di input.");
-            run.Succeeded($"Da un file di {header.Length} byte il server ha allocato {allocated / (1024 * 1024)} MB. " +
-                          "Pochi file del genere insieme esauriscono la memoria del server.");
-        }
-        else
-        {
-            var result = ImageSizeGuard.Check(new MemoryStream(header), header.Length);
-            run.Log($"Il server controlla le dimensioni dichiarate prima di caricare: esito {result}.");
-            if (result == ImageSizeGuard.Result.Ok)
-                run.Succeeded("L'immagine enorme è stata accettata: il controllo non ha funzionato.");
-            else
-                run.Blocked("L'immagine è stata rifiutata per le dimensioni dichiarate, senza allocare nulla.");
-        }
-    }
-
-    // Firma PNG (8 byte) + blocco IHDR con larghezza e altezza (byte 16-23), in tutto 24 byte.
-    private static byte[] PngHeader(int width, int height)
-    {
-        var bytes = new byte[24];
-        byte[] signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-        signature.CopyTo(bytes, 0);
-        WriteBigEndian(bytes, 16, width);
-        WriteBigEndian(bytes, 20, height);
-        return bytes;
-    }
-
-    private static void WriteBigEndian(byte[] bytes, int offset, int value)
-    {
-        bytes[offset] = (byte)(value >> 24);
-        bytes[offset + 1] = (byte)(value >> 16);
-        bytes[offset + 2] = (byte)(value >> 8);
-        bytes[offset + 3] = (byte)value;
+        run.Failed("Questo caso si prova a mano: segui i passi nella pagina del capitolo.");
+        return Task.CompletedTask;
     }
 }

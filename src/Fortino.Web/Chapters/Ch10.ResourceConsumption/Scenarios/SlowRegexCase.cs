@@ -1,19 +1,15 @@
-using System.Diagnostics;
-using Fortino.Web.Chapters.Ch10.Secure;
-using Fortino.Web.Chapters.Ch10.Vulnerable;
 using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch10.Scenarios;
 
 // Caso 10.2: un testo preparato apposta rende lentissima una validazione fatta con un'espressione
-// regolare vulnerabile (ReDoS). La versione corretta usa la stessa espressione, protetta da un limite
-// di lunghezza e da un tempo massimo.
+// regolare vulnerabile (ReDoS). Si prova dalla console: si manda il testo e si guarda il tempo (`ms`).
 public sealed class SlowRegexCase : Ch10Case
 {
     public override string Slug => "slow-regex";
     public override string Title => "Espressione regolare lenta";
     public override string Summary =>
-        "Un testo costruito apposta blocca per secondi un'espressione regolare vulnerabile senza limite di tempo. La versione corretta usa la stessa espressione con un tempo massimo: il confronto viene interrotto e il testo rifiutato.";
+        "Dalla console mandi un testo di 26 lettere \"a\" e un punto esclamativo: nella versione vulnerabile la validazione tiene occupata la CPU per secondi (ReDoS).";
     public override string BookReference => "capitolo 10, caso 10.2";
     public override CodeLocation VulnerableCode => new("Ch10.ResourceConsumption/Vulnerable/SlowRegex.cs", "regex-vulnerabile");
     public override CodeLocation SecureCode => new("Ch10.ResourceConsumption/Secure/SafeTextValidator.cs", "validazione-corretta");
@@ -21,63 +17,46 @@ public sealed class SlowRegexCase : Ch10Case
     // Molte 'a' seguite da un carattere che non corrisponde: fa esplodere il backtracking.
     public static readonly string Payload = new string('a', 26) + "!";
 
-    // Oltre questo tempo la validazione ha tenuto occupata la CPU: l'attacco è riuscito.
-    private const long SlowThresholdMs = 500;
+    private static readonly string Send =
+        "fetch('/notes/validate', {method:'POST', headers:{'Content-Type':'application/json'}, " +
+        "body: JSON.stringify({text: 'a'.repeat(26) + '!'})}).then(r=>r.json()).then(console.log)";
 
-    public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel gestionale come operatore. Apri la console (F12 › Console).",
+        "Manda all'indirizzo che valida un testo una stringa di 26 lettere \"a\" e un punto esclamativo: `" + Send + "`",
+        "Guarda il campo `ms` della risposta: quanto tempo ha impiegato il server.",
+    ];
+
+    public override ManualTrial Trial => new(
+        Username: "mario",
+        StartPath: "/orders",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "La risposta arriva dopo secondi: `ms` è nell'ordine delle migliaia. Il confronto `^(a+)+$` ha provato circa 33 milioni di modi di dividere le 26 lettere prima di arrendersi.",
+            Proves: "Un testo di 27 caratteri ha tenuto occupata la CPU del server per secondi. Poche richieste del genere bastano a bloccare il servizio.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch10.ResourceConsumption/Vulnerable/SlowRegex.cs",
+                Line: "sulla riga `bool matches = Pattern.IsMatch(input);`, nella regione `regex-vulnerabile`",
+                Watch:
+                [
+                    "Il punto di interruzione scatta, ma la riga successiva arriva solo dopo secondi: è questa riga a tenere occupata la CPU.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "La risposta arriva subito: `ms` è intorno a 100 e `outcome` vale `TimedOut`. Il tempo massimo ha interrotto il confronto e il testo è stato rifiutato.",
+            Proves: "La stessa espressione, con un limite di lunghezza e un tempo massimo di 100 ms, non si lascia bloccare: chi costruisce il testo apposta non tiene occupato il server.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch10.ResourceConsumption/Secure/SafeTextValidator.cs",
+                Line: "sulla riga `catch (RegexMatchTimeoutException)`, nella regione `validazione-corretta`",
+                Watch:
+                [
+                    "Dopo 100 ms .NET lancia `RegexMatchTimeoutException`: il `catch` scatta e la validazione restituisce `TimedOut`.",
+                ])));
+
+    public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
-        await context.ResetDataAsync(run, ct);
-        run.Log($"Testo inviato ({Payload.Length} caratteri, 26 lettere \"a\" e un punto esclamativo): {Payload}");
-
-        if (variant == CodeVariant.Vulnerable)
-        {
-            run.Log("Versione vulnerabile: confronto con ^(a+)+$, senza limite di lunghezza e senza tempo massimo.");
-
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            bool matches = SlowRegex.IsMatch(Payload);
-            stopwatch.Stop();
-            long elapsed = stopwatch.ElapsedMilliseconds;
-
-            string result = matches ? "corrisponde" : "non corrisponde";
-            run.Log($"Risultato del confronto: \"{result}\", arrivato dopo {elapsed} ms. Prima di arrendersi il motore " +
-                    "ha provato circa 33 milioni di modi di dividere le lettere in gruppi.");
-
-            if (elapsed >= SlowThresholdMs)
-                run.Succeeded($"Un testo di {Payload.Length} caratteri ha tenuto occupata la CPU per {elapsed} ms. " +
-                              "Poche richieste del genere bastano a bloccare il server.");
-            else
-                run.Blocked($"Il confronto ha risposto in {elapsed} ms: su questo computer il rallentamento non si è visto.");
-            return;
-        }
-
-        run.Log($"Versione corretta: stessa espressione ^(a+)+$, ma con un limite di {SafeTextValidator.MaxLength} caratteri " +
-                "e un tempo massimo di 100 ms per il confronto.");
-        run.Log($"Passo 1, limite di lunghezza: {Payload.Length} caratteri, sotto il limite di {SafeTextValidator.MaxLength}. " +
-                "Il testo passa al confronto.");
-
-        Stopwatch secureStopwatch = Stopwatch.StartNew();
-        SafeTextValidator.Outcome outcome = SafeTextValidator.Check(Payload);
-        secureStopwatch.Stop();
-        long secureElapsed = secureStopwatch.ElapsedMilliseconds;
-
-        string explanation = outcome switch
-        {
-            SafeTextValidator.Outcome.TimedOut =>
-                $"Passo 2, confronto: dopo {secureElapsed} ms il tempo massimo è scaduto. .NET ha interrotto il confronto " +
-                "con l'eccezione RegexMatchTimeoutException, e il testo è stato rifiutato.",
-            SafeTextValidator.Outcome.TooLong =>
-                "Il testo è stato rifiutato dal limite di lunghezza, senza usare l'espressione regolare.",
-            SafeTextValidator.Outcome.NotValid =>
-                $"Passo 2, confronto: l'espressione è stata valutata in {secureElapsed} ms e il testo non corrisponde.",
-            _ =>
-                $"Risultato della validazione: {outcome}, in {secureElapsed} ms.",
-        };
-        run.Log(explanation);
-
-        if (secureElapsed < SlowThresholdMs)
-            run.Blocked($"La validazione ha risposto in {secureElapsed} ms invece che in secondi: il tempo massimo ha fermato " +
-                        "il confronto e il testo costruito apposta è stato rifiutato.");
-        else
-            run.Succeeded($"La validazione ha comunque tenuto occupata la CPU per {secureElapsed} ms.");
+        run.Failed("Questo caso si prova a mano: segui i passi nella pagina del capitolo.");
+        return Task.CompletedTask;
     }
 }

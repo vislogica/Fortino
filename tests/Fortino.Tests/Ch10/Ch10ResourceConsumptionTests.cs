@@ -1,47 +1,146 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json.Nodes;
 using Fortino.Web.Chapters.Ch10.Scenarios;
 using Fortino.Web.Chapters.Ch10.Secure;
+using Fortino.Web.Data;
 using Fortino.Web.Lab;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Fortino.Tests.Ch10;
 
 // Capitolo 10 — Consumo di risorse e blocco del servizio.
-// Per ogni caso: sulla versione vulnerabile l'attacco riesce, su quella corretta viene bloccato.
-public class Ch10ResourceConsumptionTests(FortinoFactory factory) : IClassFixture<FortinoFactory>
+// Ogni prova rifà quello che fa il lettore dalla console: inizia la prova, entra come operatore e
+// chiama l'indirizzo vero. Non si misura il tempo (dipende dalla macchina): si guarda la risposta.
+public class Ch10ResourceConsumptionTests
 {
-    public static TheoryData<string> Cases => ["huge-image", "slow-regex", "unbounded-export"];
+    // 10.1 — l'immagine di 24 byte che dichiara 5000×5000.
+    [Fact]
+    public async Task Vulnerable_image_check_allocates_memory_from_a_tiny_file()
+    {
+        using var factory = new FortinoFactory();
+        var mario = await StartTrialAsMarioAsync(factory, "huge-image", CodeVariant.Vulnerable);
 
-    [Theory]
-    [MemberData(nameof(Cases))]
-    public async Task Vulnerable_version_lets_the_attack_through(string slug) =>
-        Assert.True((await RunAsync(slug, CodeVariant.Vulnerable)).Outcome == AttackOutcome.Succeeded, slug);
+        var json = await UploadHeaderAsync(mario, 5000, 5000);
 
-    [Theory]
-    [MemberData(nameof(Cases))]
-    public async Task Secure_version_blocks_the_attack(string slug) =>
-        Assert.True((await RunAsync(slug, CodeVariant.Secure)).Outcome == AttackOutcome.Blocked, slug);
+        Assert.Equal(24, json!["fileBytes"]!.GetValue<int>());
+        Assert.True(json["allocatedMB"]!.GetValue<long>() >= 50, json.ToJsonString());
+    }
 
-    // Ogni difesa della validazione corretta decide nel caso giusto.
+    [Fact]
+    public async Task Secure_image_check_rejects_the_declared_size_without_allocating()
+    {
+        using var factory = new FortinoFactory();
+        var mario = await StartTrialAsMarioAsync(factory, "huge-image", CodeVariant.Secure);
+
+        var json = await UploadHeaderAsync(mario, 5000, 5000);
+
+        Assert.False(json!["accepted"]!.GetValue<bool>());
+        Assert.Equal("TooManyPixels", json["result"]!.GetValue<string>());
+    }
+
+    // 10.2 — il testo d'attacco: la versione vulnerabile lo confronta (lentamente), la corretta lo
+    // interrompe con il tempo massimo.
+    [Fact]
+    public async Task Vulnerable_validation_runs_the_regex_on_the_attack_text()
+    {
+        using var factory = new FortinoFactory();
+        var mario = await StartTrialAsMarioAsync(factory, "slow-regex", CodeVariant.Vulnerable);
+
+        var json = await mario.PostAsJsonAsync("/notes/validate", new { text = SlowRegexCase.Payload });
+        var body = await json.Content.ReadFromJsonAsync<JsonObject>();
+
+        Assert.False(body!["matches"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Secure_validation_times_out_on_the_attack_text()
+    {
+        using var factory = new FortinoFactory();
+        var mario = await StartTrialAsMarioAsync(factory, "slow-regex", CodeVariant.Secure);
+
+        var json = await mario.PostAsJsonAsync("/notes/validate", new { text = SlowRegexCase.Payload });
+        var body = await json.Content.ReadFromJsonAsync<JsonObject>();
+
+        Assert.Equal("TimedOut", body!["outcome"]!.GetValue<string>());
+    }
+
+    // 10.3 — l'esportazione oltre il limite.
+    [Fact]
+    public async Task Vulnerable_export_builds_everything_in_memory()
+    {
+        using var factory = new FortinoFactory();
+        var mario = await StartTrialAsMarioAsync(factory, "unbounded-export", CodeVariant.Vulnerable);
+
+        var response = await mario.GetAsync($"/orders/export?count={StreamingZipExport.MaxEntries + 1}");
+        var body = await response.Content.ReadFromJsonAsync<JsonObject>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(body!["sizeKB"]!.GetValue<long>() > 0);
+    }
+
+    [Fact]
+    public async Task Secure_export_stops_at_the_limit()
+    {
+        using var factory = new FortinoFactory();
+        var mario = await StartTrialAsMarioAsync(factory, "unbounded-export", CodeVariant.Secure);
+
+        var response = await mario.GetAsync($"/orders/export?count={StreamingZipExport.MaxEntries + 1}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // La validazione corretta, a parte gli indirizzi, usa la difesa giusta in ogni caso.
     [Fact]
     public void Safe_validation_uses_the_right_defense()
     {
-        // Il testo d'attacco passa il limite di lunghezza, ma il tempo massimo interrompe il confronto.
         Assert.Equal(SafeTextValidator.Outcome.TimedOut, SafeTextValidator.Check(SlowRegexCase.Payload));
 
-        // Un testo troppo lungo si rifiuta senza usare l'espressione regolare.
         string tooLong = new string('a', SafeTextValidator.MaxLength + 1);
         Assert.Equal(SafeTextValidator.Outcome.TooLong, SafeTextValidator.Check(tooLong));
 
-        // I testi normali vengono valutati subito.
         Assert.Equal(SafeTextValidator.Outcome.Valid, SafeTextValidator.Check("aaaa"));
         Assert.Equal(SafeTextValidator.Outcome.NotValid, SafeTextValidator.Check("abc"));
     }
 
-    private async Task<AttackRun> RunAsync(string slug, CodeVariant variant)
+    private static async Task<JsonObject?> UploadHeaderAsync(HttpClient client, int width, int height)
     {
-        _ = factory.Server;
-        using var scope = factory.Services.CreateScope();
-        var labCase = scope.ServiceProvider.GetRequiredService<LabRegistry>().Find(10, slug)!;
-        return await scope.ServiceProvider.GetRequiredService<LabCaseRunner>().RunAsync(labCase, variant);
+        byte[] header = new byte[24];
+        byte[] signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        signature.CopyTo(header, 0);
+        WriteBigEndian(header, 16, width);
+        WriteBigEndian(header, 20, height);
+
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(header);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        content.Add(fileContent, "file", "enorme.png");
+        using var response = await client.PostAsync("/documents/check-image", content);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return await response.Content.ReadFromJsonAsync<JsonObject>();
+    }
+
+    private static void WriteBigEndian(byte[] bytes, int offset, int value)
+    {
+        bytes[offset] = (byte)(value >> 24);
+        bytes[offset + 1] = (byte)(value >> 16);
+        bytes[offset + 2] = (byte)(value >> 8);
+        bytes[offset + 3] = (byte)value;
+    }
+
+    private static async Task<HttpClient> StartTrialAsMarioAsync(FortinoFactory factory, string caseSlug, CodeVariant variant)
+    {
+        var client = factory.CreateBrowserClient();
+        var token = await LabLogin.GetAntiforgeryTokenAsync(client);
+        using var start = await client.PostAsync("/lab/prova/inizia", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["Chapter"] = "10",
+            ["CaseSlug"] = caseSlug,
+            ["Variant"] = variant.ToString(),
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, start.StatusCode);
+        await LabLogin.LoginAsync(client, "mario", SeedData.DemoPassword);
+        return client;
     }
 }
