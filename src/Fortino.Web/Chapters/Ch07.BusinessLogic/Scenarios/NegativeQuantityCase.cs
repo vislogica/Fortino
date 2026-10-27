@@ -1,5 +1,3 @@
-using System.Net.Http.Json;
-using Fortino.Web.Components;
 using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch07.Scenarios;
@@ -8,38 +6,50 @@ namespace Fortino.Web.Chapters.Ch07.Scenarios;
 public sealed class NegativeQuantityCase : Ch07Case
 {
     public override string Slug => "negative-quantity";
-    public override IReadOnlyList<string> LabUsers => ["lumen"];
     public override string Title => "Quantità negativa";
     public override string Summary =>
-        "Con l'API del portale, un cliente aggiunge al suo ordine una riga con quantità negativa: il totale diventa un credito a suo favore.";
+        "Entri nel portale come il cliente Ottica Lumen. Il portale non lascia inserire quantità negative, ma chiamando l'API dalla console aggiungi al tuo ordine una riga con quantità negativa: il totale diventa un credito a tuo favore.";
     public override string BookReference => "capitolo 7, caso 7.4";
     public override CodeLocation VulnerableCode => new("Ch07.BusinessLogic/Vulnerable/OrderService.cs", "riga-ordine-vulnerabile");
     public override CodeLocation SecureCode => new("Ch07.BusinessLogic/Secure/OrderService.cs", "riga-ordine-corretta");
 
-    private const int OrderId = 5;   // ORD-2026-0105 di Ottica Lumen, in bozza
-    private const string TotalSql =
-        "SELECT COALESCE(SUM(Quantity * UnitPrice), 0) FROM OrderLine WHERE OrderId = @OrderId;";
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel portale come Ottica Lumen (cliente). Apri il tuo ordine ORD-2026-0105, in bozza, e annota il totale.",
+        "Il portale non lascia inserire quantità negative. Falla lo stesso chiamando l'API dalla console (F12 › Console): `fetch('/portal/orders/5/lines', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({productId:2, quantity:-50})}).then(r=>r.status)`. Il prodotto 2 è il toner.",
+        "Il numero che compare è la risposta del server: 204 accettata, 400 o 409 rifiutata.",
+        "Ricarica l'ordine e guarda il totale.",
+    ];
 
-    public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
+    public override ManualTrial Trial => new(
+        Username: "lumen",
+        StartPath: "/portal/orders/5",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "La risposta è 204 e, dopo il ricarico, il totale dell'ordine è negativo: la riga con -50 toner vale come uno sconto enorme.",
+            Proves: "Il server non controlla che la quantità sia positiva. Se l'ordine viene approvato, genera un credito a favore del cliente.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch07.BusinessLogic/Vulnerable/OrderService.cs",
+                Line: "sulla riga che aggiunge la riga all'ordine, nella regione `riga-ordine-vulnerabile`",
+                Watch:
+                [
+                    "Il metodo inserisce la riga con la quantità arrivata, anche se negativa: nel totale `quantità × prezzo` diventa un valore negativo.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "La risposta è 400 (richiesta non valida) e il totale non cambia: la quantità negativa è rifiutata.",
+            Proves: "La versione corretta controlla che la quantità sia maggiore di zero prima di aggiungere la riga.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch07.BusinessLogic/Secure/OrderService.cs",
+                Line: "sulla riga che controlla la quantità, nella regione `riga-ordine-corretta`",
+                Watch:
+                [
+                    "Il metodo verifica che la quantità sia positiva e, se non lo è, solleva una `BusinessRuleException` (400) prima di inserire la riga.",
+                ])));
+
+    public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
-        await context.ResetDataAsync(run, ct);
-        var client = await context.Clients.CreateAsync(LabUsers[0], ct);
-        run.Log("Utente: Ottica Lumen (Cliente del portale).");
-
-        var before = await ReadAsync<decimal>(context, TotalSql, new { OrderId });
-        run.Log($"Ordine ORD-2026-0105, in bozza, totale {Labels.Money(before)}.");
-
-        run.Log("Richiesta all'API del portale: aggiungere -50 toner a 64,00 € l'uno.");
-        using var response = await client.PostAsJsonAsync(
-            $"{Api(variant)}/orders/{OrderId}/lines", new AddOrderLineRequest(ProductId: 2, Quantity: -50), ct);
-        await LogResponseAsync(run, response, ct);
-
-        var after = await ReadAsync<decimal>(context, TotalSql, new { OrderId });
-        run.Log($"Ordine riletto dal database: totale {Labels.Money(after)}.");
-
-        if (after < 0)
-            run.Succeeded("Il totale dell'ordine è negativo: se approvato, genera un credito a favore del cliente.");
-        else
-            run.Blocked("La quantità negativa è stata rifiutata. Il totale dell'ordine non è cambiato.");
+        run.Failed("Questo caso si prova a mano: segui i passi nella pagina del capitolo.");
+        return Task.CompletedTask;
     }
 }
