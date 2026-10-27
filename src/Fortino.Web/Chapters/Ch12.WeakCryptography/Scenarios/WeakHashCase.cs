@@ -38,12 +38,12 @@ public sealed class WeakHashCase : Ch12Case
                 Line: "sulla riga `byte[] hashBytes = MD5.HashData(passwordBytes);`, nella regione `hash-debole-vulnerabile`",
                 Watch:
                 [
-                    "`hashBytes` è lo stesso a ogni chiamata con la stessa password: non c'è nessun sale a renderlo diverso.",
+                    "`hashBytes` è lo stesso a ogni chiamata con la stessa password: non c'è nessun salt a renderlo diverso.",
                 ])),
         Secure: new TrialInstructions(
             Steps,
-            Expected: "I due hash sono diversi: ognuno ha la forma `600000.sale.impronta`, con un sale casuale diverso. La stessa password dà risultati diversi ogni volta.",
-            Proves: "Con PBKDF2 e un sale casuale per ogni hash, un elenco preparato prima non trova niente: l'unica strada è ricalcolare, e PBKDF2 è lento di proposito (600.000 ripetizioni).",
+            Expected: "I due hash sono diversi: ognuno ha la forma `600000.salt.impronta`, con un salt casuale diverso. La stessa password dà risultati diversi ogni volta.",
+            Proves: "Con PBKDF2 e un salt casuale per ogni hash, un elenco preparato prima non trova niente: l'unica strada è ricalcolare, e PBKDF2 è lento di proposito (600.000 ripetizioni).",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch12.WeakCryptography/Secure/PasswordHashing.cs",
                 Line: "sulla riga `byte[] salt = RandomNumberGenerator.GetBytes(SaltSize);`, nella regione `hash-password-corretto`",
