@@ -1,0 +1,41 @@
+@page "/account"
+@attribute [Authorize]
+@inject UserStore Users
+
+@* Il profilo dell'utente collegato, per tutti gli utenti. I dati si leggono dal database a ogni
+   apertura, non dal cookie di accesso: è qui che si vede il ruolo cambiare nel caso 8.1 del
+   Laboratorio (capitolo 8). Il profilo si modifica con l'API PUT /account/profile. *@
+
+<PageTitle>Il mio profilo · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Il mio profilo</MudText>
+
+@if (_user is not null)
+{
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudSimpleTable Dense="true" Elevation="0">
+            <tbody>
+                <tr><td style="width:160px"><b>Nome</b></td><td>@_user.DisplayName</td></tr>
+                <tr><td><b>Nome utente</b></td><td>@_user.Username</td></tr>
+                <tr><td><b>Email</b></td><td>@_user.Email</td></tr>
+                <tr><td><b>Ruolo</b></td><td>@Labels.Role(_user.Role)</td></tr>
+            </tbody>
+        </MudSimpleTable>
+        <MudText Typo="Typo.caption" Class="mt-2 d-block">
+            Nome ed e-mail li puoi cambiare tu. Il ruolo lo decide un amministratore.
+        </MudText>
+    </MudPaper>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private AppUser? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // L'utente si legge dall'utente collegato, mai dall'indirizzo della pagina.
+        var userId = (await AuthState).User.GetUserId();
+        if (userId is null) return;
+        _user = await Users.FindByIdAsync(userId.Value);
+    }
+}

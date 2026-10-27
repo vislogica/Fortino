@@ -1,7 +1,3 @@
-using System.Net.Http.Json;
-using Dapper;
-using Fortino.Web.Components;
-using Fortino.Web.Data;
 using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch08.Scenarios;
@@ -10,64 +6,51 @@ namespace Fortino.Web.Chapters.Ch08.Scenarios;
 public sealed class ClientPriceCase : Ch08Case
 {
     public override string Slug => "client-price";
-    public override IReadOnlyList<string> LabUsers => ["lumen"];
     public override string Title => "Prezzo deciso dal cliente";
     public override string Summary =>
-        "Aggiungendo un prodotto al suo ordine, un cliente scrive nella richiesta anche il prezzo: 50 toner a 1 centesimo l'uno.";
+        "Entri nel portale come il cliente Ottica Lumen. Aggiungi al tuo ordine 50 toner chiamando l'API dalla console, e nella richiesta scrivi anche il prezzo: 1 centesimo l'uno.";
     public override string BookReference => "capitolo 8, caso 8.2";
     public override CodeLocation VulnerableCode => new("Ch08.MassAssignment/Vulnerable/OrderLineApi.cs", "riga-ordine-vulnerabile");
     public override CodeLocation SecureCode => new("Ch08.MassAssignment/Secure/OrderLineApi.cs", "riga-ordine-corretta");
 
-    private const int OrderId = 5;   // ORD-2026-0105 di Ottica Lumen, in bozza
-    private const string LinesSql =
-        """
-        SELECT l.Description, l.Quantity, l.UnitPrice, p.UnitPrice AS ListPrice
-          FROM OrderLine l JOIN Product p ON p.Id = l.ProductId
-         WHERE l.OrderId = @OrderId ORDER BY l.Id;
-        """;
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel portale come Ottica Lumen (cliente), nel tuo ordine ORD-2026-0105, in bozza. Annota righe e totale.",
+        "Aggiungi 50 toner (prodotto 2, a listino 64,00 €) chiamando l'API dalla console (F12 › Console), con il prezzo scritto da te: `fetch('/portal/api/orders/5/lines', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({productId:2, description:'Toner nero per stampante laser', quantity:50, unitPrice:0.01})}).then(r=>r.status)`.",
+        "Il numero che compare è la risposta del server: 204 accettata, 400 rifiutata.",
+        "Ricarica l'ordine (F5) e guarda la nuova riga e il totale.",
+    ];
 
-    // Una riga dell'ordine con il prezzo di listino del prodotto, per confrontarli.
-    private sealed record LineRow(string Description, long Quantity, decimal UnitPrice, decimal ListPrice)
+    public override ManualTrial Trial => new(
+        Username: "lumen",
+        StartPath: "/portal/orders/5",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "La risposta è 204 e nell'ordine c'è una riga di 50 toner a 0,01 € l'uno: il totale sale di 50 centesimi invece di 3.200,00 €.",
+            Proves: "Il server salva la riga così come l'ha mandata il cliente, prezzo compreso. Il listino non viene mai letto.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch08.MassAssignment/Vulnerable/OrderLineApi.cs",
+                Line: "sulla riga `db.OrderLines.Add(line);`, nella regione `riga-ordine-vulnerabile`",
+                Watch:
+                [
+                    "`line.UnitPrice` vale 0,01: è il prezzo scritto nel JSON, non quello del listino.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "La risposta è 400 e l'ordine non cambia: description e unitPrice non sono campi ammessi nella richiesta.",
+            Proves: "Nella versione corretta il cliente sceglie solo prodotto e quantità; descrizione e prezzo li prende il server dal listino.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch08.MassAssignment/Secure/OrderLineApi.cs",
+                Line: "sulla riga che costruisce la nuova `OrderLine`, nella regione `riga-ordine-corretta`",
+                Watch:
+                [
+                    "Con description e unitPrice nel JSON il punto di interruzione non scatta: la richiesta è rifiutata prima, quando il JSON diventa un `AddOrderLineRequest`.",
+                    "Togli i due campi dalla riga della console e riprova: ora si ferma, e `product.UnitPrice` vale 64,00, il prezzo di listino.",
+                ])));
+
+    public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
-        public bool OffList => UnitPrice != ListPrice;
-
-        public override string ToString() =>
-            $"{Description}, {Quantity} × {Labels.Money(UnitPrice)}" + (OffList ? $" (listino {Labels.Money(ListPrice)})" : "");
+        run.Failed("Questo caso si prova a mano: segui i passi nella pagina del capitolo.");
+        return Task.CompletedTask;
     }
-
-    public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
-    {
-        await context.ResetDataAsync(run, ct);
-        var before = await ReadLinesAsync(context);
-        LogLines(run, "PRIMA dell'attacco", before);
-
-        var client = await context.Clients.CreateAsync(LabUsers[0], ct);
-        run.Log("Entra Ottica Lumen, cliente del portale.");
-
-        var body = new { productId = 2, description = "Toner nero per stampante laser", quantity = 50, unitPrice = 0.01m };
-        run.Log("POST /orders/5/lines: 50 toner, con il prezzo scritto nella richiesta. Campi inviati: " +
-                "productId = 2, description = Toner nero per stampante laser, quantity = 50, unitPrice = 0.01.");
-        using var response = await client.PostAsJsonAsync($"{Api(variant)}/orders/{OrderId}/lines", body, ct);
-        await LogResponseAsync(run, response, ct);
-
-        var after = await ReadLinesAsync(context);
-        LogLines(run, "DOPO l'attacco", after);
-
-        if (after.Any(l => l.OffList))
-            run.Succeeded("Il cliente ha deciso il prezzo: 50 toner pagati 0,50 € invece di 3.200,00 €. " +
-                          "Il database resta così: premi \"Ripristina i dati\" per tornare all'ordine originale.");
-        else
-            run.Blocked("Il prezzo scritto nella richiesta non è passato. L'ordine contiene solo prezzi di listino.");
-    }
-
-    private static async Task<List<LineRow>> ReadLinesAsync(LabContext context)
-    {
-        await using var db = await context.Services.GetRequiredService<DbConnectionFactory>().OpenAsync();
-        return (await db.QueryAsync<LineRow>(LinesSql, new { OrderId })).ToList();
-    }
-
-    private static void LogLines(AttackRun run, string when, List<LineRow> lines) =>
-        run.Log($"Ordine ORD-2026-0105 nel database {when}: {(lines.Count == 1 ? "1 riga" : $"{lines.Count} righe")}, totale " +
-                $"{Labels.Money(lines.Sum(l => l.Quantity * l.UnitPrice))}. " +
-                string.Join("; ", lines.Select((l, i) => $"riga {i + 1}: {l}")) + ".");
 }

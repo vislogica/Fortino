@@ -12,6 +12,7 @@
 .fortino-menu-form { margin: 0; }
 .fortino-menu-item { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 16px; font: inherit; cursor: pointer; }
 .fortino-menu-item:hover { background: #F1F5F9; }
+a.fortino-menu-item { color: inherit; text-decoration: none; box-sizing: border-box; }
 .fortino-menu-item span { color: #64748B; }
 .fortino-menu-item.is-current { background: #E6F4F2; color: #0F766E; font-weight: 600; }
 
@@ -83,7 +84,8 @@
     padding: 1px 5px;
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.06);
-    white-space: nowrap;
+    /* Le righe da incollare nella console sono lunghe: vanno a capo dentro il riquadro. */
+    overflow-wrap: anywhere;
 }
 .fortino-trial-debug {
     padding: 10px 12px;

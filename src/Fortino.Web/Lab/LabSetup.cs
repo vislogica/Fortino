@@ -3,6 +3,7 @@ using Fortino.Web.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 
 namespace Fortino.Web.Lab;
 
@@ -23,6 +24,8 @@ public static class LabSetup
             module.AddServices(services);
         }
 
+        services.AddSingleton<MatcherPolicy, TrialVariantMatcherPolicy>();
+        services.AddSingleton<ILabStateReset, DatabaseReset>();
         services.AddSingleton<LabRegistry>();
         services.AddSingleton<ILabClientFactory, LabClientFactory>();
         services.AddScoped<LabCaseRunner>();
@@ -106,5 +109,13 @@ public static class LabSetup
     {
         public int UserId { get; set; }
         public string? ReturnUrl { get; set; }
+    }
+
+    // A ogni prova il database torna allo stato iniziale, come con «Ripristina i dati»: una prova
+    // non deve trovare i dati cambiati da quella prima (un IBAN cambiato, un cliente diventato
+    // amministratore, una riga d'ordine a un centesimo).
+    private sealed class DatabaseReset(Data.DatabaseInitializer database) : ILabStateReset
+    {
+        public Task ResetAsync() => database.ResetAsync();
     }
 }

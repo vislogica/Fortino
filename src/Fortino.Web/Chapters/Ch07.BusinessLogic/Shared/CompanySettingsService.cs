@@ -19,12 +19,4 @@ public sealed class CompanySettingsService(DbConnectionFactory db, ILogger<Compa
         // PASSO 2: un cambio di coordinate bancarie va sempre registrato (capitolo 14).
         logger.LogWarning("IBAN aziendale cambiato da {User}.", changedBy);
     }
-
-    // Usato solo dal Laboratorio, a ogni prova: riporta l'IBAN a quello dei dati iniziali.
-    public async Task RestoreInitialPaymentIbanAsync()
-    {
-        await using DbConnection connection = await db.OpenAsync();
-        await connection.ExecuteAsync("UPDATE CompanySettings SET PaymentIban = @iban WHERE Id = 1;",
-            new { iban = SeedData.PaymentIban });
-    }
 }
