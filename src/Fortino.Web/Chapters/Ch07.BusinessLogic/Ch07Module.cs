@@ -19,6 +19,7 @@ public sealed class Ch07Module : ILabChapterModule
         services.AddKeyedSingleton<IOrderService, Vulnerable.OrderService>(CodeVariant.Vulnerable);
         services.AddKeyedSingleton<IOrderService, Secure.OrderService>(CodeVariant.Secure);
         services.AddSingleton<CompanySettingsService>();
+        services.AddSingleton<ILabStateReset, PaymentIbanReset>();
 
         services.AddSingleton<ILabCase, IssuedInvoiceCase>();
         services.AddSingleton<ILabCase, FrozenDataCase>();
@@ -102,5 +103,12 @@ public sealed class Ch07Module : ILabChapterModule
         {
             return Results.NotFound();
         }
+    }
+
+    // A ogni prova si rimette l'IBAN aziendale iniziale: dopo il caso 7.2 è cambiato, e la prova
+    // successiva partirebbe da un IBAN diverso da quello stampato sulle fatture emesse.
+    private sealed class PaymentIbanReset(CompanySettingsService settings) : ILabStateReset
+    {
+        public Task ResetAsync() => settings.RestoreInitialPaymentIbanAsync();
     }
 }

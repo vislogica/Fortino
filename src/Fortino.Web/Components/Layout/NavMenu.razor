@@ -16,6 +16,7 @@
         <MudNavLink Href="/documents" Icon="@Icons.Material.Outlined.Description">Documenti</MudNavLink>
         <AuthorizeView Roles="Admin" Context="admin">
             <MudNavLink Href="/users" Icon="@Icons.Material.Outlined.ManageAccounts">Utenti</MudNavLink>
+            <MudNavLink Href="/settings" Icon="@Icons.Material.Outlined.Settings">Impostazioni</MudNavLink>
         </AuthorizeView>
     </AuthorizeView>
     <AuthorizeView Policy="@Policies.Customer">

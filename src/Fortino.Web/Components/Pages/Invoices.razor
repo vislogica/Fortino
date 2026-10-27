@@ -1,14 +1,37 @@
 @page "/invoices"
 @attribute [Authorize(Policy = Policies.Staff)]
 @inject FortinoQueries Queries
+@inject IServiceProvider Services
+
+@* L'elenco delle fatture. La colonna dell'IBAN mostra quello stampato sul documento di ogni
+   fattura emessa: è qui che si vede l'effetto del caso 7.2 del Laboratorio (capitolo 7). *@
 
 <PageTitle>Fatture · Fortino</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">Fatture</MudText>
 
-<InvoiceGrid Items="_items" ShowCustomer="true" />
+<InvoiceGrid Items="_items" ShowCustomer="true" LinkToDetail="true" PaymentIbans="_ibans" />
 
 @code {
-    private IReadOnlyList<Invoice> _items = [];
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
 
-    protected override async Task OnInitializedAsync() => _items = await Queries.GetInvoicesAsync();
+    private IReadOnlyList<Invoice> _items = [];
+    private Dictionary<int, string> _ibans = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await Queries.GetInvoicesAsync();
+
+        // Il Laboratorio decide quale versione del codice costruisce i documenti (caso 7.2):
+        // fuori da una prova è sempre quella corretta.
+        CodeVariant variant = Trial.VariantFor(7, "frozen-data");
+        var documents = Services.GetRequiredKeyedService<Fortino.Web.Chapters.Ch07.IInvoiceService>(variant);
+        foreach (var invoice in _items.Where(i => i.Status != InvoiceStatus.Draft))
+        {
+            var document = await documents.GetDocumentAsync(invoice.Id);
+            if (document is not null)
+            {
+                _ibans[invoice.Id] = document.PaymentIban;
+            }
+        }
+    }
 }

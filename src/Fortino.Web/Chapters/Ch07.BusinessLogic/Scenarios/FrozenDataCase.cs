@@ -16,10 +16,11 @@ public sealed class FrozenDataCase : Ch07Case
 
     private static readonly IReadOnlyList<string> Steps =
     [
-        "Dopo l'accesso sei nel gestionale come Anna Rossi (Amministratrice). Immagina che le sue credenziali siano state rubate.",
-        "Scarica il documento della fattura 2026/014, già emessa, chiamando l'API dalla console (F12 › Console): `fetch('/staff/invoices/1/document').then(r=>r.json()).then(d=>console.log(d.number, d.paymentIban))`. Annota l'IBAN mostrato.",
-        "Cambia l'IBAN aziendale nelle impostazioni (operazione legittima per un amministratore): `fetch('/staff/settings/payment-iban', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({iban:'IT00X0000000000000000000000'})}).then(r=>r.status)`.",
-        "Riscarica il documento della stessa fattura 2026/014 con la riga del passo 2 e confronta l'IBAN.",
+        "Dopo l'accesso sei nel gestionale come Anna Rossi (Amministratrice), nella pagina «Fatture». Immagina che le sue credenziali siano state rubate.",
+        "Guarda la colonna «IBAN su cui pagare»: le fatture già emesse, 2026/014 e 2026/015, riportano l'IBAN aziendale che finisce con 123456. Apri «Impostazioni» nel menu: l'IBAN aziendale è lo stesso.",
+        "Cambia l'IBAN aziendale chiamando l'API dalla console (F12 › Console). È un'operazione legittima per un amministratore: `fetch('/staff/settings/payment-iban', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({iban:'IT00X0000000000000000000000'})}).then(r=>r.status)`. La risposta è 204.",
+        "Ricarica «Impostazioni» (F5): l'IBAN aziendale è quello nuovo, come deve essere.",
+        "Apri «Fatture» e guarda di nuovo la colonna «IBAN su cui pagare» delle fatture già emesse. Poi clicca 2026/014 e guarda l'IBAN sul documento che riceve il cliente.",
     ];
 
     public override ManualTrial Trial => new(
@@ -27,7 +28,7 @@ public sealed class FrozenDataCase : Ch07Case
         StartPath: "/invoices",
         Vulnerable: new TrialInstructions(
             Steps,
-            Expected: "Il documento della fattura già emessa ora riporta il nuovo IBAN: lo legge dai dati di oggi, non da quelli congelati all'emissione.",
+            Expected: "Tutte le fatture già emesse ora riportano il nuovo IBAN, nell'elenco e sul documento: lo leggono dai dati di oggi, non da quelli congelati all'emissione.",
             Proves: "Cambiare un dato aziendale cambia anche i documenti già emessi. Chi riscarica la vecchia fattura paga sul conto nuovo (la frode del «cambio IBAN»).",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch07.BusinessLogic/Vulnerable/InvoiceService.cs",
@@ -38,7 +39,7 @@ public sealed class FrozenDataCase : Ch07Case
                 ])),
         Secure: new TrialInstructions(
             Steps,
-            Expected: "Il documento riporta ancora l'IBAN in vigore al momento dell'emissione: il nuovo IBAN vale solo per le fatture future.",
+            Expected: "Le impostazioni mostrano il nuovo IBAN, ma le fatture già emesse riportano ancora quello del giorno dell'emissione: il nuovo IBAN vale solo per le fatture future.",
             Proves: "La versione corretta congela IBAN e cliente sul documento al momento dell'emissione: una fattura emessa non cambia più.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch07.BusinessLogic/Secure/InvoiceService.cs",

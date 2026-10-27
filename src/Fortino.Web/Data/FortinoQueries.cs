@@ -88,6 +88,19 @@ public sealed class FortinoQueries(DbConnectionFactory factory)
             new { customerId })).AsList();
     }
 
+    public async Task<IReadOnlyList<InvoiceLine>> GetInvoiceLinesAsync(int invoiceId)
+    {
+        await using var db = await factory.OpenAsync();
+        return (await db.QueryAsync<InvoiceLine>(
+            "SELECT * FROM InvoiceLine WHERE InvoiceId = @invoiceId ORDER BY Id;", new { invoiceId })).AsList();
+    }
+
+    public async Task<CompanySettings> GetCompanySettingsAsync()
+    {
+        await using var db = await factory.OpenAsync();
+        return await db.QuerySingleAsync<CompanySettings>("SELECT CompanyName, PaymentIban FROM CompanySettings WHERE Id = 1;");
+    }
+
     public async Task<IReadOnlyList<Coupon>> GetCouponsAsync()
     {
         await using var db = await factory.OpenAsync();

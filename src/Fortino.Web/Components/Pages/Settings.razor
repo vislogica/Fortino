@@ -1,0 +1,34 @@
+@page "/settings"
+@attribute [Authorize(Roles = "Admin")]
+@inject FortinoQueries Queries
+
+@* Le impostazioni dell'azienda, riservate agli amministratori. L'IBAN si cambia con l'API
+   PUT /staff/settings/payment-iban: è il passo centrale del caso 7.2 del Laboratorio (capitolo 7). *@
+
+<PageTitle>Impostazioni · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Impostazioni dell'azienda</MudText>
+
+@if (_settings is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudPaper Outlined="true" Class="pa-4">
+        <MudSimpleTable Dense="true" Elevation="0">
+            <tbody>
+                <tr><td style="width:180px"><b>Ragione sociale</b></td><td>@_settings.CompanyName</td></tr>
+                <tr><td><b>IBAN su cui pagare</b></td><td><code>@_settings.PaymentIban</code></td></tr>
+            </tbody>
+        </MudSimpleTable>
+        <MudText Typo="Typo.caption" Class="mt-2 d-block">
+            È l'IBAN che compare sulle fatture emesse da oggi in poi.
+        </MudText>
+    </MudPaper>
+}
+
+@code {
+    private CompanySettings? _settings;
+
+    protected override async Task OnInitializedAsync() => _settings = await Queries.GetCompanySettingsAsync();
+}

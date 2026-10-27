@@ -47,6 +47,24 @@ public class Ch07BusinessLogicTests
     }
     #endregion
 
+    // 7.2: una nuova prova riparte dall'IBAN iniziale, anche se la prova precedente l'ha cambiato.
+    [Fact]
+    public async Task New_trial_restores_the_initial_iban()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsync(factory, "frozen-data", CodeVariant.Vulnerable);
+        await LabLogin.LoginAsync(anna, "anna", SeedData.DemoPassword);
+        using var change = await anna.PutAsJsonAsync("/staff/settings/payment-iban",
+            new ChangePaymentIbanRequest("IT00X0000000000000000000000"));
+        Assert.Equal(HttpStatusCode.NoContent, change.StatusCode);
+
+        var next = await StartTrialAsync(factory, "frozen-data", CodeVariant.Vulnerable);
+        await LabLogin.LoginAsync(next, "anna", SeedData.DemoPassword);
+        var document = await next.GetFromJsonAsync<InvoiceDocument>("/staff/invoices/1/document");
+
+        Assert.Equal(SeedData.PaymentIban, document!.PaymentIban);
+    }
+
     // Le transizioni di stato ammesse per un ordine (la tabella usata dalla versione corretta).
     [Theory]
     [InlineData(OrderStatus.Draft, OrderStatus.Approved, true)]

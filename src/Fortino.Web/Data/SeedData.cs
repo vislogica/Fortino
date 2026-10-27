@@ -12,6 +12,9 @@ public static class SeedData
     // Password di tutti gli utenti dimostrativi. È scritta nel README: serve solo in locale.
     public const string DemoPassword = "Fortino-Demo-2026";
 
+    // IBAN aziendale iniziale: è quello stampato sulle fatture già emesse (capitolo 7).
+    public const string PaymentIban = "IT40S0542811101000000123456";
+
     public static readonly (string Username, string DisplayName, string Email, UserRole Role, int? CustomerId)[] Users =
     [
         ("anna",   "Anna Rossi",   "anna.rossi@cartaeco.example",   UserRole.Admin,    null),
@@ -63,7 +66,7 @@ public static class SeedData
               (3, 3, 4, 2026, NULL, NULL,       0, 91.00);
 
             INSERT INTO CompanySettings (Id, CompanyName, PaymentIban) VALUES
-              (1, 'Carta & Co. S.r.l.', 'IT40S0542811101000000123456');
+              (1, 'Carta & Co. S.r.l.', @PaymentIban);
 
             UPDATE Invoice
                SET IssuedCustomerName    = (SELECT Name FROM Customer c WHERE c.Id = Invoice.CustomerId),
@@ -83,7 +86,7 @@ public static class SeedData
               ('BENVENUTO10', 10, 0, NULL),
               ('AUTUNNO15',   15, 0, NULL),
               ('FEDELTA20',   20, 1, 2);
-            """, transaction: tx);
+            """, new { PaymentIban }, transaction: tx);
 
         var hasher = new PasswordHasher<AppUser>();
         foreach (var u in Users)

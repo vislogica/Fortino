@@ -77,6 +77,15 @@ public sealed class Invoice
     public string DisplayNumber => Number is null ? "—" : $"{Year}/{Number:000}";
 }
 
+public sealed class InvoiceLine
+{
+    public int Id { get; init; }
+    public int InvoiceId { get; init; }
+    public string Description { get; init; } = "";
+    public int Quantity { get; init; }
+    public decimal UnitPrice { get; init; }
+}
+
 public sealed class Coupon
 {
     public int Id { get; init; }
@@ -84,6 +93,13 @@ public sealed class Coupon
     public int DiscountPercent { get; init; }
     public bool IsUsed { get; init; }
     public int? UsedByOrderId { get; init; }
+}
+
+// Le impostazioni dell'azienda (una sola riga): l'IBAN su cui i clienti pagano le fatture.
+public sealed class CompanySettings
+{
+    public string CompanyName { get; init; } = "";
+    public string PaymentIban { get; init; } = "";
 }
 
 public sealed class StoredDocument

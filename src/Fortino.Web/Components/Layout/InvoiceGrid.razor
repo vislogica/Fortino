@@ -1,7 +1,16 @@
 <MudDataGrid T="Invoice" Items="Items" Dense="true" Hover="true" Elevation="0" Outlined="true">
     <Columns>
         <TemplateColumn Title="Numero">
-            <CellTemplate>@context.Item.DisplayNumber</CellTemplate>
+            <CellTemplate>
+                @if (LinkToDetail)
+                {
+                    <MudLink Href="@($"/invoices/{context.Item.Id}")">@context.Item.DisplayNumber</MudLink>
+                }
+                else
+                {
+                    @context.Item.DisplayNumber
+                }
+            </CellTemplate>
         </TemplateColumn>
         <TemplateColumn Title="Data">
             <CellTemplate>@(context.Item.IssueDate?.ToString("dd/MM/yyyy") ?? "—")</CellTemplate>
@@ -13,6 +22,12 @@
         <TemplateColumn Title="Totale">
             <CellTemplate>@Labels.Money(context.Item.Total)</CellTemplate>
         </TemplateColumn>
+        @if (PaymentIbans is not null)
+        {
+            <TemplateColumn Title="IBAN su cui pagare">
+                <CellTemplate>@(PaymentIbans.GetValueOrDefault(context.Item.Id) ?? "—")</CellTemplate>
+            </TemplateColumn>
+        }
         <TemplateColumn Title="Stato">
             <CellTemplate>
                 @{ var (text, color) = Labels.Invoice(context.Item.Status); }
@@ -25,4 +40,8 @@
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<Invoice> Items { get; set; } = [];
     [Parameter] public bool ShowCustomer { get; set; }
+    // Il numero diventa un collegamento al dettaglio della fattura (solo per lo staff).
+    [Parameter] public bool LinkToDetail { get; set; }
+    // L'IBAN stampato sul documento di ogni fattura emessa (caso 7.2 del Laboratorio).
+    [Parameter] public IReadOnlyDictionary<int, string>? PaymentIbans { get; set; }
 }
