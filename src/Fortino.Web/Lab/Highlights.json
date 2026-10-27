@@ -44,6 +44,22 @@
   "Ch03.Authentication/Vulnerable/SessionValidator.cs#sessione-vulnerabile": [
     "bool isValid = true;"
   ],
+  "Ch04.SecurityHeaders/Secure/CorsHeaders.cs#cors-corretto": [
+    "bool originIsAllowed = origin == AllowedOrigin;",
+    "http.Response.Headers.AccessControlAllowOrigin = AllowedOrigin;"
+  ],
+  "Ch04.SecurityHeaders/Secure/FrameHeaders.cs#clickjacking-corretto": [
+    "response.Headers.XFrameOptions = \"DENY\";",
+    "response.Headers.ContentSecurityPolicy = \"frame-ancestors 'none'\";"
+  ],
+  "Ch04.SecurityHeaders/Vulnerable/CorsHeaders.cs#cors-vulnerabile": [
+    "http.Response.Headers.AccessControlAllowOrigin = origin;",
+    "http.Response.Headers.AccessControlAllowCredentials = \"true\";"
+  ],
+  "Ch04.SecurityHeaders/Vulnerable/FrameHeaders.cs#clickjacking-vulnerabile": [
+    "response.Headers.Remove(\"X-Frame-Options\");",
+    "response.Headers.Remove(\"Content-Security-Policy\");"
+  ],
   "Ch05.SupplyChain/Secure/DependencyHygiene.cs#controllo-dipendenze": [
     "public const string CheckVulnerable = \"dotnet list package --vulnerable --include-transitive\";"
   ],
@@ -275,21 +291,5 @@
   "Ch18.Deserialization/Vulnerable/UnsafeXmlImport.cs#xml-vulnerabile": [
     "DtdProcessing = DtdProcessing.Parse,",
     "XmlResolver = new XmlUrlResolver(),"
-  ],
-  "Ch04.SecurityHeaders/Vulnerable/FrameHeaders.cs#clickjacking-vulnerabile": [
-    "response.Headers.Remove(\"X-Frame-Options\");",
-    "response.Headers.Remove(\"Content-Security-Policy\");"
-  ],
-  "Ch04.SecurityHeaders/Secure/FrameHeaders.cs#clickjacking-corretto": [
-    "response.Headers.XFrameOptions = \"DENY\";",
-    "response.Headers.ContentSecurityPolicy = \"frame-ancestors 'none'\";"
-  ],
-  "Ch04.SecurityHeaders/Vulnerable/CorsHeaders.cs#cors-vulnerabile": [
-    "http.Response.Headers.AccessControlAllowOrigin = origin;",
-    "http.Response.Headers.AccessControlAllowCredentials = \"true\";"
-  ],
-  "Ch04.SecurityHeaders/Secure/CorsHeaders.cs#cors-corretto": [
-    "bool originIsAllowed = origin == AllowedOrigin;",
-    "http.Response.Headers.AccessControlAllowOrigin = AllowedOrigin;"
   ]
 }
