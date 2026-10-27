@@ -1,77 +1,60 @@
-using System.Diagnostics;
-using Fortino.Web.Chapters.Ch12.Secure;
-using Fortino.Web.Chapters.Ch12.Vulnerable;
 using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch12.Scenarios;
 
 // Caso 12.1: una password protetta con MD5 si ritrova subito in un elenco di hash già calcolati.
+// Si prova dalla console: si calcola l'hash della stessa password due volte e si guarda se è uguale.
 public sealed class WeakHashCase : Ch12Case
 {
     public override string Slug => "weak-hash";
+    public override IReadOnlyList<string> LabUsers => ["anna"];
     public override string Title => "Password con hash debole";
     public override string Summary =>
-        "Chi attacca ha già pronto un elenco: le password più comuni, ognuna con il suo hash MD5. Ruba l'hash di " +
-        "una password dal database e lo cerca nell'elenco: se c'è, la password è trovata, senza calcolare nulla. " +
-        "Con PBKDF2 ogni hash ha il suo sale, e nell'elenco non c'è niente di uguale.";
+        "Dalla console calcoli l'hash della stessa password due volte: con MD5 (versione vulnerabile) esce sempre identico, quindi un elenco già pronto (rainbow table) lo ritrova.";
     public override string BookReference => "capitolo 12, caso 12.1";
     public override CodeLocation VulnerableCode => new("Ch12.WeakCryptography/Vulnerable/WeakPasswordHashing.cs", "hash-debole-vulnerabile");
     public override CodeLocation SecureCode => new("Ch12.WeakCryptography/Secure/PasswordHashing.cs", "hash-password-corretto");
 
-    // Le password più comuni: l'attaccante ne ha già calcolato l'hash MD5 (una "rainbow table").
-    private static readonly string[] CommonPasswords =
-        ["123456", "password", "qwerty", "password123", "abc123", "111111", "iloveyou"];
+    private static readonly string Send =
+        "const h = () => fetch('/password/hash', {method:'POST', headers:{'Content-Type':'application/json'}, " +
+        "body: JSON.stringify({password:'password123'})}).then(r=>r.json()); Promise.all([h(), h()]).then(console.log)";
 
-    private const string VictimPassword = "password123";   // la password (comune) della vittima
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel gestionale come Anna Rossi. Apri la console (F12 › Console).",
+        "Calcola l'hash della stessa password («password123») due volte e confronta i risultati: `" + Send + "`",
+        "Guarda i due campi `hash`.",
+    ];
 
-    public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
+    public override ManualTrial Trial => new(
+        Username: "anna",
+        StartPath: "/",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "I due hash sono identici (`482C811DA5D5B4BC6D497FFA98491E38`): con MD5 la stessa password dà sempre lo stesso risultato, su ogni sito.",
+            Proves: "Chi attacca può preparare una volta sola un elenco delle password comuni con il loro hash MD5 (una rainbow table) e, rubato l'hash dal database, ritrovare la password con una semplice ricerca, senza calcolare nulla.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch12.WeakCryptography/Vulnerable/WeakPasswordHashing.cs",
+                Line: "sulla riga `byte[] hashBytes = MD5.HashData(passwordBytes);`, nella regione `hash-debole-vulnerabile`",
+                Watch:
+                [
+                    "`hashBytes` è lo stesso a ogni chiamata con la stessa password: non c'è nessun sale a renderlo diverso.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "I due hash sono diversi: ognuno ha la forma `600000.sale.impronta`, con un sale casuale diverso. La stessa password dà risultati diversi ogni volta.",
+            Proves: "Con PBKDF2 e un sale casuale per ogni hash, un elenco preparato prima non trova niente: l'unica strada è ricalcolare, e PBKDF2 è lento di proposito (600.000 ripetizioni).",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch12.WeakCryptography/Secure/PasswordHashing.cs",
+                Line: "sulla riga `byte[] salt = RandomNumberGenerator.GetBytes(SaltSize);`, nella regione `hash-password-corretto`",
+                Watch:
+                [
+                    "`salt` è diverso a ogni chiamata: è lui a rendere diverso l'hash di due password uguali.",
+                ])));
+
+    public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
-        await context.ResetDataAsync(run, ct);
-
-        // PASSO 1: l'elenco già pronto. L'attaccante l'ha calcolato una volta sola, per tutti i siti.
-        run.Log("L'attaccante ha già pronto un elenco: le password più comuni con il loro hash MD5.");
-        foreach (string password in CommonPasswords)
-        {
-            run.Log($"   {password,-12} → {WeakPasswordHashing.Hash(password)}");
-        }
-
-        // PASSO 2: dal database rubato legge quello che l'applicazione ha salvato per un utente.
-        string stored = variant == CodeVariant.Vulnerable
-            ? WeakPasswordHashing.Hash(VictimPassword)
-            : PasswordHashing.Hash(VictimPassword);
-        run.Log($"Dal database rubato legge cosa è salvato per un utente: {stored}");
-
-        // PASSO 3: cerca quello che ha rubato nel suo elenco. È solo una ricerca: nessun calcolo.
-        string? found = CommonPasswords.FirstOrDefault(p =>
-            string.Equals(WeakPasswordHashing.Hash(p), stored, StringComparison.OrdinalIgnoreCase));
-
-        if (found is not null)
-        {
-            run.Log($"Lo cerca nell'elenco e lo trova, alla riga \"{found}\": la password dell'utente è \"{found}\".");
-            run.Succeeded($"La password è stata trovata con una semplice ricerca: \"{found}\". Con MD5 senza sale la " +
-                          "stessa password dà sempre lo stesso hash, su ogni sito: per questo l'elenco preparato " +
-                          "una volta funziona per sempre.");
-            return;
-        }
-
-        // Versione corretta: perché l'elenco non serve.
-        run.Log("Lo cerca nell'elenco e non lo trova. Quello salvato ha tre parti separate da un punto: " +
-                "ripetizioni (600000), sale casuale, impronta. L'impronta è calcolata con PBKDF2 sulla password " +
-                "più il sale, che esiste solo per questo utente: nessun elenco preparato prima può contenerla.");
-
-        string sameForAnotherUser = PasswordHashing.Hash(VictimPassword);
-        run.Log($"Prova del sale: la stessa password \"{VictimPassword}\" salvata per un altro utente dà {sameForAnotherUser}. " +
-                "Sale e impronta sono diversi.");
-
-        // L'unica strada rimasta: ricalcolare ogni password candidata con questo sale e 600.000 ripetizioni.
-        Stopwatch stopwatch = Stopwatch.StartNew();
-        PasswordHashing.Verify(CommonPasswords[0], stored);
-        stopwatch.Stop();
-        run.Log($"All'attaccante resta solo una strada: ricalcolare ogni password candidata con il sale di questo " +
-                $"utente e 600.000 ripetizioni. Provarne una sola ha richiesto {stopwatch.ElapsedMilliseconds} ms; " +
-                "con MD5 bastava meno di un milionesimo di secondo.");
-
-        run.Blocked("L'elenco già pronto non serve: con il sale ogni utente ha un'impronta unica, e ogni tentativo " +
-                    "costa centinaia di migliaia di volte di più che con MD5.");
+        run.Failed("Questo caso si prova a mano: segui i passi nella pagina del capitolo.");
+        return Task.CompletedTask;
     }
 }

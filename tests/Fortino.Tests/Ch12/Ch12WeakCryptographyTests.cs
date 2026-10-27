@@ -1,28 +1,70 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json.Nodes;
 using Fortino.Web.Chapters.Ch12.Secure;
 using Fortino.Web.Chapters.Ch12.Vulnerable;
+using Fortino.Web.Data;
 using Fortino.Web.Lab;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Fortino.Tests.Ch12;
 
 // Capitolo 12 — Crittografia debole.
-// Per ogni caso: sulla versione vulnerabile l'attacco riesce, su quella corretta viene bloccato.
-public class Ch12WeakCryptographyTests(FortinoFactory factory) : IClassFixture<FortinoFactory>
+// Le prove rifanno quello che fa il lettore dalla console: inizia la prova, entra come Anna Rossi e
+// chiama l'indirizzo vero; più due controlli diretti sui generatori.
+public class Ch12WeakCryptographyTests
 {
-    public static TheoryData<string> Cases => ["weak-hash", "predictable-token"];
+    // 12.1 — con MD5 la stessa password dà sempre lo stesso hash.
+    [Fact]
+    public async Task Vulnerable_hash_is_the_same_every_time()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "weak-hash", CodeVariant.Vulnerable);
 
-    [Theory]
-    [MemberData(nameof(Cases))]
-    public async Task Vulnerable_version_lets_the_attack_through(string slug) =>
-        Assert.True((await RunAsync(slug, CodeVariant.Vulnerable)).Outcome == AttackOutcome.Succeeded, slug);
+        var first = await HashAsync(anna, "password123");
+        var second = await HashAsync(anna, "password123");
 
-    [Theory]
-    [MemberData(nameof(Cases))]
-    public async Task Secure_version_blocks_the_attack(string slug) =>
-        Assert.True((await RunAsync(slug, CodeVariant.Secure)).Outcome == AttackOutcome.Blocked, slug);
+        Assert.Equal(first, second);
+        Assert.Equal("482C811DA5D5B4BC6D497FFA98491E38", first);
+    }
+
+    // 12.1 — con PBKDF2 e sale casuale, due hash della stessa password sono diversi.
+    [Fact]
+    public async Task Secure_hash_is_different_every_time()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "weak-hash", CodeVariant.Secure);
+
+        var first = await HashAsync(anna, "password123");
+        var second = await HashAsync(anna, "password123");
+
+        Assert.NotEqual(first, second);
+    }
+
+    // 12.2 — il codice vulnerabile è di sole 8 cifre (System.Random).
+    [Fact]
+    public async Task Vulnerable_reset_token_is_eight_digits()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "predictable-token", CodeVariant.Vulnerable);
+
+        var token = await TokenAsync(anna);
+
+        Assert.Matches("^[0-9]{8}$", token);
+    }
+
+    // 12.2 — il codice corretto è lungo e casuale (RandomNumberGenerator).
+    [Fact]
+    public async Task Secure_reset_token_is_long_and_random()
+    {
+        using var factory = new FortinoFactory();
+        var anna = await StartTrialAsAnnaAsync(factory, "predictable-token", CodeVariant.Secure);
+
+        var token = await TokenAsync(anna);
+
+        Assert.True(token.Length > 8, token);
+    }
 
     // L'esempio del libro: con lo stesso seme System.Random dà sempre lo stesso codice.
-    // Seme 1792750530 = 23/10/2026 alle 10:15:30 (UTC), in secondi dal 1970.
     [Fact]
     public void Same_seed_gives_the_same_reset_code_as_in_the_book()
     {
@@ -38,14 +80,39 @@ public class Ch12WeakCryptographyTests(FortinoFactory factory) : IClassFixture<F
     {
         string first = ResetToken.Create().Token;
         string second = ResetToken.Create().Token;
+
         Assert.NotEqual(first, second);
     }
 
-    private async Task<AttackRun> RunAsync(string slug, CodeVariant variant)
+    private static async Task<string> HashAsync(HttpClient client, string password)
     {
-        _ = factory.Server;
-        using var scope = factory.Services.CreateScope();
-        var labCase = scope.ServiceProvider.GetRequiredService<LabRegistry>().Find(12, slug)!;
-        return await scope.ServiceProvider.GetRequiredService<LabCaseRunner>().RunAsync(labCase, variant);
+        using var response = await client.PostAsJsonAsync("/password/hash", new { Password = password });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonObject>();
+        return json!["hash"]!.GetValue<string>();
+    }
+
+    private static async Task<string> TokenAsync(HttpClient client)
+    {
+        using var response = await client.PostAsync("/password/reset-token", null);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonObject>();
+        return json!["token"]!.GetValue<string>();
+    }
+
+    private static async Task<HttpClient> StartTrialAsAnnaAsync(FortinoFactory factory, string caseSlug, CodeVariant variant)
+    {
+        var client = factory.CreateBrowserClient();
+        var token = await LabLogin.GetAntiforgeryTokenAsync(client);
+        using var start = await client.PostAsync("/lab/prova/inizia", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = token,
+            ["Chapter"] = "12",
+            ["CaseSlug"] = caseSlug,
+            ["Variant"] = variant.ToString(),
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, start.StatusCode);
+        await LabLogin.LoginAsync(client, "anna", SeedData.DemoPassword);
+        return client;
     }
 }
