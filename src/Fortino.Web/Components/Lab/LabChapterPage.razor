@@ -53,10 +53,22 @@ else
                     </MudText>
                     <pre class="fortino-step-detail">@labCase.ProcessCommand</pre>
                 }
+
+                @if (labCase.ProcessSteps.Count > 0)
+                {
+                    <MudText Typo="Typo.subtitle2" Class="mt-3 mb-1"><b>I passi, uno per uno</b></MudText>
+                    <ol class="fortino-process-steps">
+                        @foreach (var step in labCase.ProcessSteps)
+                        {
+                            <li>@step</li>
+                        }
+                    </ol>
+                }
+
                 <MudText Typo="Typo.body2" Class="mt-2">
-                    I passi completi (correzione e verifica) sono nel libro, @labCase.BookReference. I comandi e
-                    le impostazioni utili sono raccolti nel file
-                    <code class="fortino-trial-code">@labCase.SecureCode.File</code>.
+                    Gli stessi passi, con le schermate, sono nel libro, @labCase.BookReference. I comandi e le
+                    impostazioni utili sono raccolti nel file
+                    <code class="fortino-trial-code">src/Fortino.Web/Chapters/@labCase.SecureCode.File</code>.
                 </MudText>
 
                 <MudButton OnClick="() => MarkProcessDoneAsync(labCase)" Variant="Variant.Filled"

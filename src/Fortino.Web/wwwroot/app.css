@@ -29,6 +29,9 @@
     border: 1px solid #E2E8F0; border-radius: 4px; font-family: Consolas, monospace; font-size: .75rem;
     line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+.fortino-process-steps { margin: 4px 0 0; padding-left: 22px; }
+.fortino-process-steps li { margin: 4px 0; line-height: 1.5; font-size: .875rem; }
+
 .fortino-code { border-radius: 6px; overflow: hidden; background: #0F172A; }
 .fortino-code-file { font-family: Consolas, monospace; font-size: .75rem; color: #94A3B8; padding: 6px 10px; border-bottom: 1px solid #1E293B; }
 .fortino-code pre { margin: 0; padding: 8px 0; color: #E2E8F0; font-family: Consolas, monospace; font-size: .78rem; line-height: 1.5; overflow-x: auto; }

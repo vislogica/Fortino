@@ -34,6 +34,9 @@ public interface ILabCase
     // Per i capitoli di processo, il comando da eseguire nel terminale (mostrato nella scheda).
     string? ProcessCommand => null;
 
+    // Per i capitoli di processo, i passi della prova mostrati nella scheda (come nel libro).
+    IReadOnlyList<string> ProcessSteps => [];
+
     // Il nome di una pagina dimostrativa da provare a mano, se il caso ne ha una (per esempio
     // "my-invoices"). La pagina del caso mostra il pulsante per aprirla, nella versione scelta:
     // /lab/chNN/vulnerable/{ManualPage} oppure /lab/chNN/secure/{ManualPage}.

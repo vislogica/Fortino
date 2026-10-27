@@ -25,6 +25,17 @@ public sealed class VulnerableComponentsCase : LabCaseBase
     // Il comando di controllo, preso dall'unica fonte vera: la costante della versione corretta.
     public override string? ProcessCommand => Secure.DependencyHygiene.CheckVulnerable;
 
+    // I passi della prova, gli stessi del libro (capitolo 5).
+    public override IReadOnlyList<string> ProcessSteps =>
+    [
+        "Apri un terminale nella cartella samples/Ch05.SupplyChain del progetto (in Visual Studio: tasto destro sul progetto VulnerableSample, poi «Apri nel terminale»). Non serve avviare il progetto.",
+        "Esegui il controllo: dotnet list package --vulnerable --include-transitive. Compare System.Text.Encodings.Web 4.7.1, con gravità Critical e il collegamento all'avviso.",
+        "Vedi qual è la versione aggiornata: dotnet list package --outdated. La colonna «Più recenti» indica l'ultima disponibile.",
+        "Correggi: apri VulnerableSample.csproj e cambia Version=\"4.7.1\" con la versione più recente.",
+        "Rilancia il primo comando: ora dice che il progetto non contiene pacchetti vulnerabili.",
+        "Rimetti la versione 4.7.1 se vuoi ripetere la prova da capo.",
+    ];
+
     public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
         run.Log("Questo capitolo non ha un attacco da eseguire: la vulnerabilità sta in un pacchetto, non nel codice di Fortino.");

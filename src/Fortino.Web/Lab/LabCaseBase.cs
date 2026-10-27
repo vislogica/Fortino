@@ -24,6 +24,8 @@ public abstract class LabCaseBase : ILabCase
 
     public virtual string? ProcessCommand => null;
 
+    public virtual IReadOnlyList<string> ProcessSteps => [];
+
     public virtual string? ManualPage => null;
 
     public virtual string? ManualHint => null;
