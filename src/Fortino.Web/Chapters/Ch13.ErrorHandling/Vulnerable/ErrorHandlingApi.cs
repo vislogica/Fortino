@@ -7,11 +7,12 @@ namespace Fortino.Web.Chapters.Ch13.Vulnerable;
 // VERSIONE VULNERABILE. Codice volutamente insicuro, solo per il Laboratorio.
 public static class ErrorHandlingApi
 {
-    public static void Map(RouteGroupBuilder group)
+    // Caso 13.1: emissione di una fattura. POST /invoices/issue
+    public static void MapIssue(RouteGroupBuilder group)
     {
         #region libro: errore-dettagli-vulnerabile
-        // Caso 13.1. Se l'operazione fallisce, il messaggio tecnico dell'eccezione (con il testo
-        // dell'errore del database, cioè nomi di tabelle e colonne) viene restituito al client.
+        // Se l'operazione fallisce, il messaggio tecnico dell'eccezione (con il testo dell'errore del
+        // database, cioè nomi di tabelle e colonne) viene restituito al client.
         group.MapPost("/invoices/issue", async (IssueInvoiceRequest request, DbConnectionFactory factory) =>
         {
             try
@@ -30,10 +31,14 @@ public static class ErrorHandlingApi
             }
         });
         #endregion
+    }
 
+    // Caso 13.2: nota riservata di un ordine. GET /orders/{orderId}/note
+    public static void MapNote(RouteGroupBuilder group)
+    {
         #region libro: fail-open-vulnerabile
-        // Caso 13.2. Solo il cliente proprietario dovrebbe leggere la nota dell'ordine. Ma se il
-        // controllo del proprietario lancia un'eccezione, il codice la ignora e lascia passare.
+        // Solo il cliente proprietario dovrebbe leggere la nota dell'ordine. Ma se il controllo del
+        // proprietario lancia un'eccezione, il codice la ignora e lascia passare.
         group.MapGet("/orders/{orderId:int}/note", async (int orderId, ClaimsPrincipal user, DbConnectionFactory factory) =>
         {
             try
@@ -47,7 +52,7 @@ public static class ErrorHandlingApi
                 bool isOwner = await Ch13Shared.IsOwnerAsync(factory, orderId, customerId);
                 if (!isOwner)
                 {
-                    return Results.Forbid();
+                    return Results.StatusCode(StatusCodes.Status403Forbidden);
                 }
             }
             catch

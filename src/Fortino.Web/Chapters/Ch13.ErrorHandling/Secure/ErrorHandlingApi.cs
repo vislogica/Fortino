@@ -7,13 +7,12 @@ namespace Fortino.Web.Chapters.Ch13.Secure;
 // VERSIONE CORRETTA.
 public static class ErrorHandlingApi
 {
-    public static void Map(RouteGroupBuilder group, ILoggerFactory loggerFactory)
+    // Caso 13.1: emissione di una fattura. POST /invoices/issue
+    public static void MapIssue(RouteGroupBuilder group, ILogger logger)
     {
-        ILogger logger = loggerFactory.CreateLogger("Ch13.ErrorHandling");
-
         #region libro: errore-dettagli-corretto
-        // Caso 13.1. Il dettaglio dell'errore si scrive nel registro interno, con un riferimento;
-        // al client va solo un messaggio generico e lo stesso riferimento, per l'assistenza.
+        // Il dettaglio dell'errore si scrive nel registro interno, con un riferimento; al client va
+        // solo un messaggio generico e lo stesso riferimento, per l'assistenza.
         group.MapPost("/invoices/issue", async (IssueInvoiceRequest request, DbConnectionFactory factory) =>
         {
             try
@@ -38,10 +37,14 @@ public static class ErrorHandlingApi
             }
         });
         #endregion
+    }
 
+    // Caso 13.2: nota riservata di un ordine. GET /orders/{orderId}/note
+    public static void MapNote(RouteGroupBuilder group, ILogger logger)
+    {
         #region libro: fail-open-corretto
-        // Caso 13.2. Il risultato del controllo parte da "non autorizzato"; se il controllo
-        // fallisce, resta "non autorizzato" (fail closed): nel dubbio si nega, non si concede.
+        // Il risultato del controllo parte da "non autorizzato"; se il controllo fallisce, resta
+        // "non autorizzato" (fail closed): nel dubbio si nega, non si concede.
         group.MapGet("/orders/{orderId:int}/note", async (int orderId, ClaimsPrincipal user, DbConnectionFactory factory) =>
         {
             // PASSO 1: si parte da "non autorizzato".
@@ -69,7 +72,7 @@ public static class ErrorHandlingApi
             // PASSO 5: la nota si mostra solo a chi è sicuramente il proprietario.
             if (!isOwner)
             {
-                return Results.Forbid();
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
             IResult response = Results.Ok(new { note = Ch13Shared.OrderNote });
             return response;
