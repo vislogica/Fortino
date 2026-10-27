@@ -56,6 +56,8 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseHttpsRedirection();
+// Se le pagine possono essere mostrate dentro altri siti (capitolo 4, caso 4.1).
+app.UseFrameProtection();
 
 app.UseAuthentication();
 app.UseAuthorization();
