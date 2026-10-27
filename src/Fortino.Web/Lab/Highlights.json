@@ -132,7 +132,7 @@
     "string originalName = Path.GetFileName(file.FileName);"
   ],
   "Ch09.FileHandling/Secure/DocumentApi.cs#scarica-file-corretto": [
-    "group.MapGet(\"/documents/{id:int}\"",
+    "if (document is null)",
     "string fullPath = store.PathFor(document.StoredName);"
   ],
   "Ch09.FileHandling/Vulnerable/UnsafeDocumentIO.cs#salva-file-vulnerabile": [

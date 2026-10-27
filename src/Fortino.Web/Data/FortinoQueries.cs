@@ -113,6 +113,14 @@ public sealed class FortinoQueries(DbConnectionFactory factory)
         return (await db.QueryAsync<StoredDocument>("SELECT * FROM StoredDocument ORDER BY UploadedAt DESC;")).AsList();
     }
 
+    public async Task<IReadOnlyList<StoredDocument>> GetOrderDocumentsAsync(int orderId)
+    {
+        await using var db = await factory.OpenAsync();
+        return (await db.QueryAsync<StoredDocument>(
+            "SELECT * FROM StoredDocument WHERE OrderId = @orderId ORDER BY UploadedAt DESC;",
+            new { orderId })).AsList();
+    }
+
     public async Task<DashboardFigures> GetDashboardAsync(int year)
     {
         await using var db = await factory.OpenAsync();

@@ -58,6 +58,26 @@ else
             </tr>
         </tbody>
     </MudSimpleTable>
+
+    @* Documenti allegati all'ordine: è qui che si provano i casi 9.1 (caricamento) e 9.2
+       (scaricamento) del Laboratorio. Lo scaricamento passa per l'indirizzo
+       /orders/{id}/documents/content?name=... *@
+    <MudText Typo="Typo.h6" Class="mt-6 mb-2">Documenti allegati</MudText>
+    @if (_documents.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Nessun documento allegato.</MudText>
+    }
+    else
+    {
+        <MudList T="string" Dense="true" Class="pa-0">
+            @foreach (var doc in _documents)
+            {
+                <MudListItem T="string" Icon="@Icons.Material.Outlined.Description">
+                    <MudLink Href="@DownloadHref(doc)" Target="_blank">@doc.OriginalName</MudLink>
+                </MudListItem>
+            }
+        </MudList>
+    }
 }
 
 @code {
@@ -67,9 +87,13 @@ else
 
     private Order? _order;
     private IReadOnlyList<OrderLine> _lines = [];
+    private IReadOnlyList<StoredDocument> _documents = [];
     private MarkupString _note;
     private bool _loaded;
     private List<BreadcrumbItem> _breadcrumbs = [];
+
+    private string DownloadHref(StoredDocument doc) =>
+        $"/orders/{OrderId}/documents/content?name={Uri.EscapeDataString(doc.OriginalName)}";
 
     protected override async Task OnParametersSetAsync()
     {
@@ -78,6 +102,7 @@ else
         if (_order is not null)
         {
             _lines = await Queries.GetOrderLinesAsync(OrderId);
+            _documents = await Queries.GetOrderDocumentsAsync(OrderId);
 
             // Il Laboratorio decide quale versione del codice prepara la nota (caso 2.2):
             // fuori da una prova è sempre quella corretta.

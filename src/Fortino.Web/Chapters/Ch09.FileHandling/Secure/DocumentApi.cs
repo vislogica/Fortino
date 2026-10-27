@@ -28,10 +28,11 @@ public static class DocumentApi
     // Un documento salvato, come si legge dal database.
     private sealed record StoredDocumentRow(string StoredName, string OriginalName, string ContentType);
 
-    public static void Map(RouteGroupBuilder group)
+    // Caricamento: POST /orders/{orderId}/documents
+    public static void MapUpload(RouteGroupBuilder group)
     {
         #region libro: salva-file-corretto
-        // Caricamento: il file ricevuto si salva con un nome deciso dal server, non dall'utente.
+        // Il file ricevuto si salva con un nome deciso dal server, non dall'utente.
         group.MapPost("/orders/{orderId:int}/documents", async (int orderId, IFormFile file,
             DocumentStore store, DbConnectionFactory factory) =>
         {
@@ -92,35 +93,46 @@ public static class DocumentApi
             };
             long id = await connection.ExecuteScalarAsync<long>(sql, parameters);
 
-            // PASSO 6: si restituisce il numero del documento, con cui si potrà scaricarlo.
-            IResult response = Results.Ok(new { id });
+            // PASSO 6: si restituisce il numero del documento e dove è stato salvato (dentro la cartella).
+            IResult response = Results.Ok(new { id, path = fullPath });
             return response;
         }).DisableAntiforgery();
         #endregion
+    }
 
+    // Scaricamento: GET /orders/{orderId}/documents/content?name=...
+    public static void MapDownload(RouteGroupBuilder group)
+    {
         #region libro: scarica-file-corretto
-        // Scaricamento: si chiede il documento per il suo numero (id), non per il nome del file.
-        // Il server ricava il percorso dal nome salvato (un GUID), mai da qualcosa scritto dall'utente.
-        group.MapGet("/documents/{id:int}", async (int id, DocumentStore store, DbConnectionFactory factory) =>
+        // Si cerca il documento tra quelli dell'ordine per il nome mostrato, poi si legge dal nome
+        // salvato (un GUID). Quello che l'utente scrive non arriva mai a File.ReadAllBytes.
+        group.MapGet("/orders/{orderId:int}/documents/content", async (int orderId, string name,
+            DocumentStore store, DbConnectionFactory factory) =>
         {
-            // PASSO 1: si cerca il documento nel database per numero.
+            // PASSO 1: si cerca nel database un documento DI QUESTO ORDINE con quel nome mostrato.
             await using DbConnection connection = await factory.OpenAsync();
-            string sql = "SELECT StoredName, OriginalName, ContentType FROM StoredDocument WHERE Id = @id;";
-            object parameters = new { id };
-            StoredDocumentRow? document = await connection.QuerySingleOrDefaultAsync<StoredDocumentRow>(sql, parameters);
+            string sql =
+                """
+                SELECT StoredName, OriginalName, ContentType FROM StoredDocument
+                WHERE OrderId = @orderId AND OriginalName = @name;
+                """;
+            StoredDocumentRow? document =
+                await connection.QuerySingleOrDefaultAsync<StoredDocumentRow>(sql, new { orderId, name });
+
+            // PASSO 2: se non è tra i documenti dell'ordine, non si legge niente dal disco.
             if (document is null)
             {
-                return Results.NotFound();
+                return Results.Text("Documento non trovato.", "text/plain; charset=utf-8", null, StatusCodes.Status404NotFound);
             }
 
-            // PASSO 2: il percorso si ricava dal nome salvato (il GUID), passando dal controllo di PathFor.
+            // PASSO 3: il percorso si ricava dal nome salvato (il GUID), passando dal controllo di PathFor.
             string fullPath = store.PathFor(document.StoredName);
             if (!File.Exists(fullPath))
             {
-                return Results.NotFound();
+                return Results.Text("Documento non trovato.", "text/plain; charset=utf-8", null, StatusCodes.Status404NotFound);
             }
 
-            // PASSO 3: il nome originale torna solo come nome suggerito al browser per il download.
+            // PASSO 4: il nome originale torna solo come nome suggerito al browser per il download.
             IResult response = Results.File(fullPath, document.ContentType, document.OriginalName);
             return response;
         });
