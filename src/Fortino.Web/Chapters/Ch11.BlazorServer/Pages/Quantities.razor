@@ -1,0 +1,73 @@
+@page "/portal/quantities"
+@attribute [Authorize(Policy = Policies.Customer)]
+@implements IDisposable
+@using Fortino.Web.Lab
+@inject DbConnectionFactory Factory
+@inject IJSRuntime JS
+
+@* "I miei ordini in bozza" del portale clienti, con il selettore della quantità. È qui che si prova
+   il caso 11.2: quale oggetto riceve le modifiche del cursore (quello che si fida o quello che
+   controlla) lo decide il cookie della prova; fuori da una prova è sempre quello corretto. *@
+<PageTitle>I miei ordini in bozza · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-1">I miei ordini in bozza</MudText>
+<MudText Typo="Typo.caption" Class="mud-text-secondary d-block mb-4">
+    Sposta il cursore per cambiare la quantità di una riga.</MudText>
+
+<QuantityTable Lines="_lines" OnReload="LoadAsync" />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
+
+    private List<DraftLine> _lines = [];
+    private int? _customerId;
+    private CodeVariant _variant;
+    private IDisposable? _editor;
+    private DotNetObjectReference<Quantities>? _page;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _customerId = (await AuthState).User.GetCustomerId();
+        _variant = Trial.VariantFor(11, "jsinvokable");
+        await LoadAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _customerId is not int id) return;
+
+        // La pagina passa al JavaScript l'oggetto che cambia le quantità. Da qui in poi la console
+        // del browser può chiamarne i metodi [JSInvokable]: è proprio quello che il caso 11.2 mostra.
+        _page = DotNetObjectReference.Create(this);
+        if (_variant == CodeVariant.Vulnerable)
+        {
+            var editor = DotNetObjectReference.Create(new Vulnerable.QuantityEditor(Factory));
+            _editor = editor;
+            await JS.InvokeVoidAsync("fortinoCh11.register", editor, _page);
+        }
+        else
+        {
+            // Il cliente si fissa qui, sul server, leggendolo dall'utente collegato: il browser non lo cambia.
+            var editor = DotNetObjectReference.Create(new Secure.QuantityEditor(Factory, id));
+            _editor = editor;
+            await JS.InvokeVoidAsync("fortinoCh11.register", editor, _page);
+        }
+    }
+
+    // Dopo ogni modifica dal cursore, la tabella si rilegge: si vede subito la quantità nel database.
+    [JSInvokable]
+    public async Task Reload()
+    {
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private async Task LoadAsync() =>
+        _lines = _customerId is int id ? await DraftLines.ForCustomerAsync(Factory, id) : [];
+
+    public void Dispose()
+    {
+        _editor?.Dispose();
+        _page?.Dispose();
+    }
+}

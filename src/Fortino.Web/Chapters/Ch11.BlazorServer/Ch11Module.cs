@@ -6,9 +6,11 @@ using Fortino.Web.Lab;
 namespace Fortino.Web.Chapters.Ch11;
 
 // Capitolo 11 — Specificità di Blazor Server.
-// Qui non ci sono API: i casi riguardano pagine Blazor e servizi. Le pagine delle due versioni sono
-//   /lab/ch11/vulnerable/my-invoices   e /lab/ch11/secure/my-invoices    (caso 11.1)
-//   /lab/ch11/vulnerable/quantities    e /lab/ch11/secure/quantities     (caso 11.2)
+// Qui non ci sono API: i casi riguardano pagine Blazor e servizi. Le prove si fanno su due pagine
+// vere del portale clienti, che scelgono la versione dal cookie della prova (fuori da una prova, la
+// corretta):
+//   /portal/invoices     "Le mie fatture"            (caso 11.1, servizio singleton condiviso)
+//   /portal/quantities   "I miei ordini in bozza"    (caso 11.2, metodo [JSInvokable] dalla console)
 public sealed class Ch11Module : ILabChapterModule
 {
     public int Chapter => 11;

@@ -16,9 +16,39 @@ public sealed class SharedSingletonCase : Ch11Case
     public override string BookReference => "capitolo 11, caso 11.1";
     public override CodeLocation VulnerableCode => new("Ch11.BlazorServer/Vulnerable/MyInvoicesService.cs", "fatture-vulnerabile");
     public override CodeLocation SecureCode => new("Ch11.BlazorServer/Secure/MyInvoicesService.cs", "fatture-corrette");
-    public override string? ManualPage => "my-invoices";
-    public override string? ManualHint =>
-        "Questo caso si prova anche a mano, in una pagina apposita del portale clienti: entra come cliente (lumen o verdi).";
+
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel portale come Ottica Lumen, in «Le mie fatture» (`/portal/invoices`). Vedi le tue fatture; l'avviso dice che il servizio crede che il cliente sia Ottica Lumen.",
+        "Apri una seconda finestra del browser in incognito. Vai a `/lab/ch11`, caso «Fatture di un altro cliente», e premi di nuovo «Inizia la prova sulla versione vulnerabile»: entra come `verdi` (Studio Verdi) e arrivi nella stessa pagina. Ora l'avviso dice che il servizio crede che il cliente sia Studio Verdi.",
+        "Torna alla prima finestra (Ottica Lumen) e premi «Aggiorna».",
+    ];
+
+    public override ManualTrial Trial => new(
+        Username: "lumen",
+        StartPath: "/portal/invoices",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "Ottica Lumen, premendo «Aggiorna», vede le fatture di Studio Verdi: l'ultimo cliente che ha aperto la pagina nell'altra finestra.",
+            Proves: "Il servizio che ricorda il cliente è un singleton, cioè uno solo per tutta l'applicazione: il secondo utente che apre la pagina prende il posto del primo.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch11.BlazorServer/Vulnerable/MyInvoicesService.cs",
+                Line: "sulla riga `int? customerId = current.CustomerId;`, nella regione `fatture-vulnerabile`",
+                Watch:
+                [
+                    "`current.CustomerId` è il cliente dell'ultima finestra che ha aperto la pagina (Studio Verdi), non per forza chi sta chiedendo adesso le fatture (Ottica Lumen).",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "Ottica Lumen, premendo «Aggiorna», vede ancora soltanto le proprie fatture: la seconda finestra non cambia quello che vede la prima.",
+            Proves: "La versione corretta non conserva il cliente nel servizio: lo chiede ogni volta all'utente del circuito, cioè della scheda del browser. Ogni scheda ha il suo.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch11.BlazorServer/Secure/MyInvoicesService.cs",
+                Line: "sulla riga `AuthenticationState state = await authentication.GetAuthenticationStateAsync();`, nella regione `fatture-corrette`",
+                Watch:
+                [
+                    "`state.User` è sempre l'utente di questa scheda: in Ottica Lumen resta Ottica Lumen, anche dopo che un altro cliente ha aperto la pagina altrove.",
+                ])));
 
     public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {

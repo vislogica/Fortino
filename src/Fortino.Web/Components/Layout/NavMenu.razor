@@ -22,6 +22,8 @@
     <AuthorizeView Policy="@Policies.Customer">
         <MudText Typo="Typo.overline" Class="fortino-nav-group">Portale clienti</MudText>
         <MudNavLink Href="/portal" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Storefront">I miei ordini</MudNavLink>
+        <MudNavLink Href="/portal/quantities" Icon="@Icons.Material.Outlined.Tune">Ordini in bozza</MudNavLink>
+        <MudNavLink Href="/portal/invoices" Icon="@Icons.Material.Outlined.ReceiptLong">Le mie fatture</MudNavLink>
         <MudNavLink Href="/portal/profile" Icon="@Icons.Material.Outlined.Badge">La mia anagrafica</MudNavLink>
     </AuthorizeView>
     <AuthorizeView>

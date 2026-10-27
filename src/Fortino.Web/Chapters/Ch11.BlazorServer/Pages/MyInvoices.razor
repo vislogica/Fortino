@@ -1,0 +1,52 @@
+@page "/portal/invoices"
+@attribute [Authorize(Policy = Policies.Customer)]
+@using Fortino.Web.Lab
+@inject Fortino.Web.Chapters.Ch11.Vulnerable.PortalUserContext Current
+@inject Fortino.Web.Chapters.Ch11.Vulnerable.MyInvoicesService VulnerableInvoices
+@inject Fortino.Web.Chapters.Ch11.Secure.MyInvoicesService SecureInvoices
+
+@* "Le mie fatture" del portale clienti. È qui che si prova il caso 11.1 del Laboratorio: quale
+   servizio prepara le fatture (il singleton condiviso o quello del circuito) lo decide il cookie
+   della prova; fuori da una prova è sempre quello corretto. *@
+<PageTitle>Le mie fatture · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-1">Le mie fatture</MudText>
+
+@if (_variant == CodeVariant.Vulnerable)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+        Utente collegato: <b>@_user</b>. Il servizio crede che il cliente sia: <b>@Current.CustomerName</b>.
+    </MudAlert>
+}
+
+<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mb-3" OnClick="LoadAsync"
+           StartIcon="@Icons.Material.Filled.Refresh">Aggiorna</MudButton>
+<InvoiceGrid Items="_invoices" />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+    [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
+
+    private IReadOnlyList<Invoice> _invoices = [];
+    private string _user = "";
+    private CodeVariant _variant;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+        _user = user.GetDisplayName();
+
+        // Il Laboratorio decide quale versione del servizio usare (caso 11.1): fuori da una prova
+        // è sempre quella corretta.
+        _variant = Trial.VariantFor(11, "shared-singleton");
+        if (_variant == CodeVariant.Vulnerable)
+        {
+            Current.SetUser(user);   // il servizio singleton ricorda il cliente... per tutti
+        }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() =>
+        _invoices = _variant == CodeVariant.Vulnerable
+            ? await VulnerableInvoices.GetAsync()
+            : await SecureInvoices.GetAsync();
+}

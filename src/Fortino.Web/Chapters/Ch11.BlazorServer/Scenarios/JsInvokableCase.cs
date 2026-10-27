@@ -16,12 +16,44 @@ public sealed class JsInvokableCase : Ch11Case
     public override string BookReference => "capitolo 11, caso 11.2";
     public override CodeLocation VulnerableCode => new("Ch11.BlazorServer/Vulnerable/QuantityEditor.cs", "quantita-vulnerabile");
     public override CodeLocation SecureCode => new("Ch11.BlazorServer/Secure/QuantityEditor.cs", "quantita-corretta");
-    public override string? ManualPage => "quantities";
-    public override string? ManualHint =>
-        "Questo caso si prova anche a mano, in una pagina apposita del portale clienti: entra come cliente (lumen o verdi).";
 
     private const long OwnLine = 8;       // toner nell'ordine ORD-2026-0105 di Ottica Lumen, in bozza
     private const long ForeignLine = 9;   // sedie nell'ordine ORD-2026-0106 di Ferramenta Nord, in bozza
+
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel portale come Ottica Lumen, nella pagina «I miei ordini in bozza» (`/portal/quantities`). La tabella mostra le righe dei tuoi ordini, con il numero di riga e un cursore da 1 a 99.",
+        "La pagina lascia l'oggetto che cambia le quantità raggiungibile dalla console come `window.fortinoCh11.editor`. Apri la console (F12 › Console) e chiamalo su una riga di un ALTRO cliente (la riga 9, sedie nell'ordine di Ferramenta Nord) con una quantità che il cursore non permette: `window.fortinoCh11.editor.invokeMethodAsync('SetQuantity', 9, 600)`",
+        "Poi sulla tua riga 8 (toner) con una quantità negativa: `window.fortinoCh11.editor.invokeMethodAsync('SetQuantity', 8, -20)`",
+        "Premi «Rileggi dal database».",
+    ];
+
+    public override ManualTrial Trial => new(
+        Username: "lumen",
+        StartPath: "/portal/quantities",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "La tua riga 8 diventa -20, una quantità che il cursore non permette. La chiamata sulla riga 9 (di un altro cliente) non dà errore: anche quella è stata cambiata a 600, come si vede entrando nel gestionale.",
+            Proves: "Il metodo [JSInvokable] si fida di quello che arriva dal browser: accetta qualunque riga (anche di un altro cliente) e qualunque quantità (anche negativa), perché la pagina mostrava solo valori leciti.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch11.BlazorServer/Vulnerable/QuantityEditor.cs",
+                Line: "sulla riga dell'`UPDATE OrderLine`, nella regione `quantita-vulnerabile`",
+                Watch:
+                [
+                    "`lineId` e `quantity` sono quelli scritti nella console (9 e 600, oppure 8 e -20): non vengono controllati.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "`invokeMethodAsync` restituisce `false` tutte e due le volte e nessuna quantità cambia: la riga 8 resta com'era e la riga 9 non viene toccata.",
+            Proves: "La versione corretta controlla la quantità (da 1 a 99) e cambia la riga solo se appartiene a un ordine in bozza del cliente di questo circuito, letto sul server e non dal browser.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch11.BlazorServer/Secure/QuantityEditor.cs",
+                Line: "sulla riga `bool quantityIsValid = ...`, nella regione `quantita-corretta`",
+                Watch:
+                [
+                    "Con quantità 600 o -20 `quantityIsValid` è false e si restituisce subito false.",
+                    "Con una quantità valida ma riga di un altro cliente, l'UPDATE non cambia righe (il filtro sul cliente) e si restituisce false.",
+                ])));
 
     public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
