@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Text;
 using Dapper;
 using Fortino.Web.Auth;
 using Fortino.Web.Lab;
@@ -19,7 +18,13 @@ public sealed class Ch09Module : ILabChapterModule
 
     // L'ordine e il documento da cui parte la prova 9.2.
     public const int TrialOrderId = 5;                       // ORD-2026-0105
-    public const string DemoDocumentName = "fattura-esempio.pdf";
+    // Un'immagine (non un PDF): il browser la mostra dentro la scheda, con l'indirizzo in barra,
+    // qualunque sia l'impostazione sui PDF. Così il lettore vede e può modificare ?name=...
+    public const string DemoDocumentName = "fattura-esempio.png";
+
+    // Una PNG valida di 1x1 pixel (base64): basta per mostrare l'indirizzo nella barra.
+    private const string DemoPngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
     // Il file riservato FINTO che il Laboratorio mette accanto alla cartella dei documenti:
     // serve solo a mostrare che un nome con ".." legge un file fuori posto. Non è un segreto vero.
@@ -64,13 +69,13 @@ public sealed class Ch09Module : ILabChapterModule
         TryDelete(Path.Combine(dataFolder, "fuori-dai-documenti.pdf"));
 
         // PASSO 2: il documento di esempio dell'ordine, salvato con un nome deciso dal server (GUID).
-        string storedName = $"{Guid.NewGuid():N}.pdf";
-        byte[] demo = Encoding.UTF8.GetBytes("%PDF-1.4\nDocumento di esempio del Laboratorio.\n%%EOF\n");
+        string storedName = $"{Guid.NewGuid():N}.png";
+        byte[] demo = Convert.FromBase64String(DemoPngBase64);
         await File.WriteAllBytesAsync(Path.Combine(root, storedName), demo, ct);
         await db.ExecuteAsync(
             """
             INSERT INTO StoredDocument (OrderId, OriginalName, StoredName, ContentType, Size, UploadedAt)
-            VALUES (@order, @original, @stored, 'application/pdf', @size, @now);
+            VALUES (@order, @original, @stored, 'image/png', @size, @now);
             """,
             new { order = TrialOrderId, original = DemoDocumentName, stored = storedName, size = demo.Length, now = DateTime.UtcNow.ToString("o") },
             transaction: tx);

@@ -132,8 +132,9 @@ public static class DocumentApi
                 return Results.Text("Documento non trovato.", "text/plain; charset=utf-8", null, StatusCodes.Status404NotFound);
             }
 
-            // PASSO 4: il nome originale torna solo come nome suggerito al browser per il download.
-            IResult response = Results.File(fullPath, document.ContentType, document.OriginalName);
+            // PASSO 4: si restituisce il file, mostrato dentro la pagina (non come allegato da scaricare),
+            // così nella barra degli indirizzi resta visibile il nome chiesto.
+            IResult response = Results.File(fullPath, document.ContentType);
             return response;
         });
         #endregion
