@@ -25,11 +25,25 @@ public static class AuthEndpoints
         // [FromForm] fa scattare la verifica automatica del token antiforgery.
         auth.MapPost("/login", async ([FromForm] LoginForm form, HttpContext http,
             Chapters.Ch03.Vulnerable.LoginChecker vulnerableChecker, Chapters.Ch03.Secure.LoginChecker secureChecker,
-            ILogger<LoginForm> logger) =>
+            ILogger<LoginForm> logger, ILoggerFactory loggerFactory) =>
         {
             // Il Laboratorio decide quale versione del codice controlla la password (caso 3.1):
             // fuori da una prova è sempre quella corretta, che blocca dopo 5 errori.
             var trial = new LabTrialState(ActiveTrial.Parse(http.Request.Cookies[ActiveTrial.CookieName]));
+
+            // Caso 14.1 (segreti nel registro): durante la prova, il login reale registra il tentativo
+            // di accesso. La versione vulnerabile ci mette dentro la password in chiaro.
+            if (trial.Current is { Chapter: 14, CaseSlug: "secrets-in-log" })
+            {
+                if (trial.VariantFor(14, "secrets-in-log") == CodeVariant.Vulnerable)
+                    Chapters.Ch14.Vulnerable.LoggingApi.LogLoginAttempt(
+                        loggerFactory.CreateLogger("Fortino.Ch14.Vulnerable"), form.Username ?? "", form.Password ?? "");
+                else
+                    Chapters.Ch14.Secure.LoggingApi.LogLoginAttempt(
+                        loggerFactory.CreateLogger("Fortino.Ch14.Secure"),
+                        new Chapters.Ch14.LoginAttemptRequest(form.Username ?? "", form.Password ?? ""));
+            }
+
             var checker = trial.VariantFor(3, "brute-force") == CodeVariant.Vulnerable
                 ? (Func<string, string, Task<Chapters.Ch03.LoginResult>>)vulnerableChecker.CheckAsync
                 : secureChecker.CheckAsync;

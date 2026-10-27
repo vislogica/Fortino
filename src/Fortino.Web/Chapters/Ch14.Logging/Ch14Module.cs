@@ -1,15 +1,15 @@
-using Fortino.Web.Auth;
 using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch14;
 
 // Capitolo 14 — Log e monitoraggio.
-// Gli indirizzi sono quelli veri dell'applicazione, registrati una volta per versione; risponde
-// quella scelta dal cookie della prova, fuori da una prova la corretta:
-//   POST /login-attempt               tentativo di accesso        (caso 14.1, segreti nel registro)
-//   POST /users/{id}/deactivate       disattivazione di un utente (caso 14.2, azione non tracciata)
-// I logger hanno categoria "Fortino.Ch14...", così i messaggi compaiono nella pagina "Registro".
-// I due casi si provano dalla console e l'effetto si legge nel Registro.
+// Qui non ci sono indirizzi propri: i due casi si provano con le pagine vere dell'applicazione.
+//   14.1 (segreti nel registro): la maschera di login reale registra il tentativo di accesso
+//        (con la password nella versione vulnerabile) — vedi Auth/AuthEndpoints.
+//   14.2 (azione non tracciata): il pulsante «Disattiva» della pagina Utenti lascia o no una voce
+//        di audit — vedi Infrastructure/UserAdminEndpoints.
+// In tutti e due il codice del capitolo (LoggingApi) viene richiamato durante la prova; i logger
+// hanno categoria "Fortino.Ch14...", così i messaggi compaiono nella pagina "Registro".
 public sealed class Ch14Module : ILabChapterModule
 {
     public int Chapter => 14;
@@ -20,22 +20,5 @@ public sealed class Ch14Module : ILabChapterModule
         services.AddSingleton<ILabCase, Scenarios.MissingAuditCase>();
     }
 
-    public void MapEndpoints(IEndpointRouteBuilder app)
-    {
-        var loggerFactory = app.ServiceProvider.GetRequiredService<ILoggerFactory>();
-        var vulnLog = loggerFactory.CreateLogger("Fortino.Ch14.Vulnerable");
-        var secLog = loggerFactory.CreateLogger("Fortino.Ch14.Secure");
-
-        // 14.1 Segreti nel registro.
-        Vulnerable.LoggingApi.MapLoginAttempt(
-            app.MapTrialVariant(Chapter, "secrets-in-log", CodeVariant.Vulnerable).MapGroup("").RequireAuthorization(), vulnLog);
-        Secure.LoggingApi.MapLoginAttempt(
-            app.MapTrialVariant(Chapter, "secrets-in-log", CodeVariant.Secure).MapGroup("").RequireAuthorization(), secLog);
-
-        // 14.2 Azione sensibile non tracciata.
-        Vulnerable.LoggingApi.MapDeactivate(
-            app.MapTrialVariant(Chapter, "missing-audit", CodeVariant.Vulnerable).MapGroup("").RequireAuthorization(Policies.Staff), vulnLog);
-        Secure.LoggingApi.MapDeactivate(
-            app.MapTrialVariant(Chapter, "missing-audit", CodeVariant.Secure).MapGroup("").RequireAuthorization(Policies.Staff), secLog);
-    }
+    public void MapEndpoints(IEndpointRouteBuilder app) { }
 }

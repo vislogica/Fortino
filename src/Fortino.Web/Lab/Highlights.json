@@ -225,7 +225,7 @@
     "string requestText = SafeLog.Describe(request);"
   ],
   "Ch14.Logging/Vulnerable/LoggingApi.cs#audit-mancante-vulnerabile": [
-    "await Ch14Shared.DeactivateUserAsync(factory, userId);"
+    "Nessuna voce di audit: l'operazione sensibile non si registra."
   ],
   "Ch14.Logging/Vulnerable/LoggingApi.cs#segreti-nei-log-vulnerabile": [
     "logger.LogInformation(\"Tentativo di accesso: utente={Username}, password={Password}\","
