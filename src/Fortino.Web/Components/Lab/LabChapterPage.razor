@@ -21,7 +21,52 @@ else
 
     @foreach (var labCase in Registry.ForChapter(_chapter.Number))
     {
-        if (labCase.Trial is null)
+        if (labCase.IsProcess)
+        {
+            // Capitolo "di processo" (supply chain): nessun attacco da lanciare. Scheda autosufficiente,
+            // senza login: il comando da eseguire, il rimando al libro e un pulsante per segnarlo fatto.
+            var complete = LabProgressStore.IsComplete(_done, labCase);
+            <MudPaper Outlined="true" Class="pa-4 mb-5">
+                <div class="d-flex align-center mb-1">
+                    <MudText Typo="Typo.h6">@labCase.Title</MudText>
+                    <MudSpacer />
+                    @if (complete)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.Check">Controllato</MudChip>
+                    }
+                </div>
+                <MudText Typo="Typo.body2" Class="mt-1">@labCase.Summary</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Libro: @labCase.BookReference · @labCase.Owasp · ISO 27001 @labCase.Iso27001
+                </MudText>
+
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mt-3">
+                    Qui non c'è un attacco da lanciare nell'applicazione: la vulnerabilità sta in un pacchetto
+                    non aggiornato e si scopre con un comando.
+                </MudAlert>
+
+                @if (labCase.ProcessCommand is not null)
+                {
+                    <MudText Typo="Typo.body2" Class="mt-3 mb-1">
+                        Apri un terminale nella cartella <code class="fortino-trial-code">samples/Ch05.SupplyChain</code>
+                        del progetto ed esegui:
+                    </MudText>
+                    <pre class="fortino-step-detail">@labCase.ProcessCommand</pre>
+                }
+                <MudText Typo="Typo.body2" Class="mt-2">
+                    I passi completi (correzione e verifica) sono nel libro, @labCase.BookReference. I comandi e
+                    le impostazioni utili sono raccolti nel file
+                    <code class="fortino-trial-code">@labCase.SecureCode.File</code>.
+                </MudText>
+
+                <MudButton OnClick="() => MarkProcessDoneAsync(labCase)" Variant="Variant.Filled"
+                           Color="@(complete ? Color.Success : Color.Primary)" Class="mt-3"
+                           StartIcon="@(complete ? Icons.Material.Filled.Check : Icons.Material.Filled.DoneOutline)">
+                    @(complete ? "Controllato" : "Segna come controllato")
+                </MudButton>
+            </MudPaper>
+        }
+        else if (labCase.Trial is null)
         {
             // Caso non ancora rifatto con la prova a mano: si prova con il pulsante automatico.
             // Il pulsante diventa verde quando il caso è stato provato su entrambe le versioni
@@ -125,6 +170,13 @@ else
         await MarkFinishedTrialAsync();
         _done = await Progress.LoadAsync();
         StateHasChanged();
+    }
+
+    // Capitolo di processo: segna il controllo come fatto (tinge di verde l'avanzamento).
+    private async Task MarkProcessDoneAsync(ILabCase labCase)
+    {
+        await Progress.MarkAsync(labCase, CodeVariant.Secure);
+        _done = await Progress.LoadAsync();
     }
 
     // Segna come fatta la prova appena chiusa con "Ho fatto la prova".

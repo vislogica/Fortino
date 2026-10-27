@@ -32,7 +32,14 @@ else
                            OnClick="() => Select(CodeVariant.Secure)">Corretto</MudButton>
             </MudButtonGroup>
         </div>
-        @if (!_case.VulnerableAvailable)
+        @if (_case.IsProcess)
+        {
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">
+                Capitolo di processo: non c'è un attacco da eseguire. La vulnerabilità sta in un pacchetto e
+                si scopre con un comando. I passi sono nella scheda del capitolo e nel libro, @_case.BookReference.
+            </MudText>
+        }
+        else if (!_case.VulnerableAvailable)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">
                 La versione vulnerabile e la dimostrazione dell'attacco non sono ancora incluse in questa

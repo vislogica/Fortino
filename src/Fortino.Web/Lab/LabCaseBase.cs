@@ -20,6 +20,10 @@ public abstract class LabCaseBase : ILabCase
 
     public virtual bool VulnerableAvailable => true;
 
+    public virtual bool IsProcess => false;
+
+    public virtual string? ProcessCommand => null;
+
     public virtual string? ManualPage => null;
 
     public virtual string? ManualHint => null;

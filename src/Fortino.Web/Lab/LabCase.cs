@@ -26,6 +26,14 @@ public interface ILabCase
     // l'interruttore "Vulnerabile" resta disabilitato e si può vedere solo la versione corretta.
     bool VulnerableAvailable => true;
 
+    // true per i capitoli "di processo" (il 5, supply chain): non c'è un attacco da lanciare
+    // nell'applicazione, la vulnerabilità sta in un pacchetto e si scopre con un comando. La pagina
+    // del capitolo mostra una scheda informativa autosufficiente, non il pulsante "Prova".
+    bool IsProcess => false;
+
+    // Per i capitoli di processo, il comando da eseguire nel terminale (mostrato nella scheda).
+    string? ProcessCommand => null;
+
     // Il nome di una pagina dimostrativa da provare a mano, se il caso ne ha una (per esempio
     // "my-invoices"). La pagina del caso mostra il pulsante per aprirla, nella versione scelta:
     // /lab/chNN/vulnerable/{ManualPage} oppure /lab/chNN/secure/{ManualPage}.

@@ -20,6 +20,11 @@ public sealed class VulnerableComponentsCase : LabCaseBase
 
     public override bool VulnerableAvailable => false;
 
+    public override bool IsProcess => true;
+
+    // Il comando di controllo, preso dall'unica fonte vera: la costante della versione corretta.
+    public override string? ProcessCommand => Secure.DependencyHygiene.CheckVulnerable;
+
     public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
         run.Log("Questo capitolo non ha un attacco da eseguire: la vulnerabilità sta in un pacchetto, non nel codice di Fortino.");
