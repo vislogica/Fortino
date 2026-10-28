@@ -1,0 +1,130 @@
+@page "/invoices/{InvoiceId:int}/modifica"
+@attribute [Authorize(Policy = Policies.Staff)]
+@inject FortinoQueries Queries
+
+@* La modifica delle righe di una fattura. Nell'elenco il collegamento c'è solo per le bozze, ma
+   l'indirizzo si può scrivere a mano anche per una fattura emessa: è qui che si prova il caso 7.1
+   del Laboratorio (capitolo 7). Se il salvataggio passa o no lo decide il codice del server. *@
+
+<PageTitle>Modifica fattura · Fortino</PageTitle>
+<MudBreadcrumbs Items="_breadcrumbs" Class="px-0 pt-0" />
+
+@if (!_loaded)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_invoice is null)
+{
+    <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+        <b>Fattura non trovata.</b> Torna all'elenco delle fatture.
+    </MudAlert>
+}
+else
+{
+    var (statusText, statusColor) = Labels.Invoice(_invoice.Status);
+    <div class="d-flex align-center mb-4">
+        <MudText Typo="Typo.h5">Modifica fattura @(_invoice.Number is null ? "in bozza" : _invoice.DisplayNumber)</MudText>
+        <MudChip T="string" Size="Size.Small" Color="statusColor" Variant="Variant.Text" Class="ml-3">@statusText</MudChip>
+    </div>
+    <MudText Typo="Typo.body2" Class="mb-3">Cliente: @_invoice.CustomerName</MudText>
+
+    <ActionOutcome Outcome="@Outcome" Error="@Error" SuccessText="Riga salvata: il totale della fattura è stato ricalcolato." />
+
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0">
+        <thead>
+            <tr><th>Descrizione</th><th style="width:110px">Quantità</th><th style="width:130px">Prezzo (€)</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var line in _lines)
+            {
+                string formId = $"riga-{line.Id}";
+                <tr>
+                    <td>@line.Description</td>
+                    <td><input class="fortino-input" form="@formId" name="Quantity" type="number" min="1" value="@line.Quantity" /></td>
+                    <td><input class="fortino-input" form="@formId" name="UnitPrice" type="number" min="0" step="0.01" value="@line.UnitPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)" /></td>
+                    <td style="text-align:right">
+                        <form id="@formId" method="post" action="@($"/invoices/{_invoice.Id}/righe/{line.Id}")" class="fortino-menu-form">
+                            <AntiforgeryToken />
+                            <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">Salva la riga</MudButton>
+                        </form>
+                    </td>
+                </tr>
+            }
+            <tr>
+                <td colspan="3" style="text-align:right"><b>Totale</b></td>
+                <td style="text-align:right"><b>@Labels.Money(_invoice.Total)</b></td>
+            </tr>
+        </tbody>
+    </MudSimpleTable>
+
+    @* L'emissione di una bozza, con il numero scelto a mano. Se il numero è già usato, l'emissione
+       fallisce: è qui che si prova il caso 13.1 del Laboratorio (capitolo 13). *@
+    @if (_invoice.Status == InvoiceStatus.Draft)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-6" Style="max-width:520px">
+            <MudText Typo="Typo.h6" Class="mb-3">Emetti la fattura</MudText>
+            <form method="post" action="/invoices/issue" class="d-flex align-end" style="gap:12px">
+                <AntiforgeryToken />
+                <input type="hidden" name="InvoiceId" value="@_invoice.Id" />
+                <input type="hidden" name="Year" value="2026" />
+                <div style="width:160px">
+                    <label for="number" class="mud-typography-body2">Numero (anno 2026)</label>
+                    <input class="fortino-input" id="number" name="Number" type="number" min="1" value="@_nextNumber" />
+                </div>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Emetti</MudButton>
+            </form>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary d-block mt-2">Il numero proposto è il primo libero.</MudText>
+        </MudPaper>
+    }
+
+    @* La finestra che si apre sopra il modulo se l'emissione non riesce. Il testo arriva dal server
+       così com'è: tutto il dettaglio nella versione vulnerabile, un messaggio generico nella corretta. *@
+    <MudDialog @bind-Visible="_issueErrorVisible" Options="_dialogOptions">
+        <TitleContent>
+            <div class="d-flex align-center" style="gap:10px">
+                <MudIcon Icon="@Icons.Material.Filled.ErrorOutline" Color="Color.Error" Size="Size.Large" />
+                <MudText Typo="Typo.h6" Color="Color.Error">Emissione non riuscita</MudText>
+            </div>
+        </TitleContent>
+        <DialogContent>
+            <pre class="fortino-error-text">@_issueError</pre>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="() => _issueErrorVisible = false">Chiudi</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    [Parameter] public int InvoiceId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "esito")] public string? Outcome { get; set; }
+    [SupplyParameterFromQuery(Name = "errore")] public string? Error { get; set; }
+    // La chiave del messaggio di errore dell'emissione (caso 13.1).
+    [SupplyParameterFromQuery(Name = "errore-emissione")] public string? IssueErrorKey { get; set; }
+
+    private string? _issueError;
+    private bool _issueErrorVisible;
+    private readonly DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+
+    private Invoice? _invoice;
+    private IReadOnlyList<InvoiceLine> _lines = [];
+    private int _nextNumber = 1;
+    private bool _loaded;
+    private List<BreadcrumbItem> _breadcrumbs = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _breadcrumbs = [new("Fatture", "/invoices"), new("Modifica", null, disabled: true)];
+        _invoice = await Queries.GetInvoiceAsync(InvoiceId);
+        if (_invoice is not null)
+        {
+            _lines = await Queries.GetInvoiceLinesAsync(InvoiceId);
+            var invoices = await Queries.GetInvoicesAsync();
+            _nextNumber = invoices.Where(i => i.Year == 2026 && i.Number is not null).Select(i => i.Number!.Value).DefaultIfEmpty(0).Max() + 1;
+        }
+        _issueError = Fortino.Web.Chapters.Ch13.Ch13Shared.FindError(IssueErrorKey);
+        _issueErrorVisible = _issueError is not null;
+        _loaded = true;
+    }
+}

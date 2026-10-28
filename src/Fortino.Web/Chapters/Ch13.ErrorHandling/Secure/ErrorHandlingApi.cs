@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Fortino.Web.Auth;
 using Fortino.Web.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fortino.Web.Chapters.Ch13.Secure;
 
@@ -13,13 +14,13 @@ public static class ErrorHandlingApi
         #region libro: errore-dettagli-corretto
         // Il dettaglio dell'errore si scrive nel registro interno, con un riferimento; al client va
         // solo un messaggio generico e lo stesso riferimento, per l'assistenza.
-        group.MapPost("/invoices/issue", async (IssueInvoiceRequest request, DbConnectionFactory factory) =>
+        group.MapPost("/invoices/issue", async ([FromForm] IssueInvoiceRequest request, DbConnectionFactory factory) =>
         {
             try
             {
                 // PASSO 1: si prova a emettere la fattura.
                 await Ch13Shared.IssueInvoiceAsync(factory, request);
-                return Results.NoContent();
+                return Results.LocalRedirect("/invoices");
             }
             catch (Exception ex)
             {
@@ -30,9 +31,9 @@ public static class ErrorHandlingApi
                 // PASSO 3: il dettaglio tecnico va solo nel registro interno.
                 logger.LogWarning(ex, "Emissione fattura non riuscita (rif. {Reference}).", reference);
 
-                // PASSO 4: al client va un messaggio generico, con il riferimento per l'assistenza.
+                // PASSO 4: all'utente va un messaggio generico, con il riferimento per l'assistenza.
                 string message = $"Operazione non riuscita. Riferimento per l'assistenza: {reference}.";
-                IResult response = Results.Problem(detail: message, statusCode: StatusCodes.Status500InternalServerError);
+                IResult response = Ch13Shared.ShowError(request.InvoiceId, message);
                 return response;
             }
         });

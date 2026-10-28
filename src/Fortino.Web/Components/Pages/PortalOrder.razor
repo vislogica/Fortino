@@ -3,6 +3,7 @@
 @using Fortino.Web.Chapters.Ch01
 @inject Fortino.Web.Chapters.Ch01.Vulnerable.OrderDetailReader VulnerableReader
 @inject Fortino.Web.Chapters.Ch01.Secure.OrderDetailReader SecureReader
+@inject FortinoQueries Queries
 
 @* Il dettaglio di un ordine nel portale clienti. Il numero dell'ordine arriva dall'indirizzo:
    è qui che si prova il caso 1.1 del Laboratorio (capitolo 1). *@
@@ -58,6 +59,51 @@ else
         </form>
     }
 
+    @* Finché l'ordine è in bozza, il cliente può aggiungere articoli. Il campo della quantità ha
+       min="1": il browser non lascia inviare un numero più piccolo. Ma è un controllo del browser,
+       e il browser è nelle mani dell'utente: è qui che si prova il caso 7.4 del Laboratorio (capitolo 7). *@
+    @if (_order.Status == OrderStatus.Draft)
+    {
+        <ActionOutcome Outcome="@LineOutcome" Error="@LineError" SuccessText="Articolo aggiunto all'ordine." />
+        <form method="post" action="@($"/portal/orders/{_order.Id}/righe")" class="d-flex align-end mb-4" style="gap:12px;max-width:720px">
+            <AntiforgeryToken />
+            <div style="flex:1">
+                <label for="product" class="mud-typography-body2">Articolo</label>
+                <select class="fortino-input" id="product" name="ProductId">
+                    @foreach (var product in _products)
+                    {
+                        <option value="@product.Id">@product.Name (@Labels.Money(product.UnitPrice))</option>
+                    }
+                </select>
+            </div>
+            <div style="width:110px">
+                <label for="quantity" class="mud-typography-body2">Quantità</label>
+                <input class="fortino-input" id="quantity" name="Quantity" type="number" min="1" max="1000" value="1" />
+            </div>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Aggiungi all'ordine</MudButton>
+        </form>
+
+        @* Il buono sconto, monouso: è qui che si prova il caso 16.1 del Laboratorio (capitolo 16). *@
+        <div id="buono">
+        @if (Coupon is not null)
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">Buono @Coupon applicato: lo sconto è nelle righe dell'ordine.</MudAlert>
+        }
+        @if (CouponError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@CouponError</MudAlert>
+        }
+        <form method="post" action="@($"/portal/orders/{_order.Id}/buono")" class="d-flex align-end mb-4" style="gap:12px;max-width:520px">
+            <AntiforgeryToken />
+            <div style="flex:1">
+                <label for="coupon" class="mud-typography-body2">Buono sconto</label>
+                <input class="fortino-input" id="coupon" name="Code" placeholder="per esempio BENVENUTO10" />
+            </div>
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Primary">Applica il buono</MudButton>
+        </form>
+        </div>
+    }
+
     <MudSimpleTable Dense="true" Outlined="true" Elevation="0">
         <thead>
             <tr><th>Articolo</th><th style="text-align:right">Quantità</th><th style="text-align:right">Prezzo</th><th style="text-align:right">Importo</th></tr>
@@ -86,10 +132,18 @@ else
     // Esito del salvataggio della nota, dopo il form: "salvata" o "rifiutata".
     [SupplyParameterFromQuery(Name = "nota")] public string? NoteResult { get; set; }
 
+    // Esito del modulo «Aggiungi all'ordine».
+    [SupplyParameterFromQuery(Name = "esito")] public string? LineOutcome { get; set; }
+    [SupplyParameterFromQuery(Name = "errore")] public string? LineError { get; set; }
+    // Il buono appena applicato (caso 16.1).
+    [SupplyParameterFromQuery(Name = "buono")] public string? Coupon { get; set; }
+    [SupplyParameterFromQuery(Name = "errore-buono")] public string? CouponError { get; set; }
+
     [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
     [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
 
     private OrderDetail? _order;
+    private IReadOnlyList<Product> _products = [];
     private bool _loaded;
     private List<BreadcrumbItem> _breadcrumbs = [];
 
@@ -109,6 +163,7 @@ else
         {
             _order = await SecureReader.ReadAsync(OrderId, user);
         }
+        _products = await Queries.GetProductsAsync();
         _loaded = true;
     }
 }

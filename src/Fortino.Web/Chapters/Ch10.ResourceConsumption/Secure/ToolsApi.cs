@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fortino.Web.Chapters.Ch10.Secure;
 
@@ -8,7 +9,7 @@ namespace Fortino.Web.Chapters.Ch10.Secure;
 // StreamingZipExport; qui c'è l'indirizzo che le usa.
 public static class ToolsApi
 {
-    // 10.1 Immagine con dimensioni enormi: POST /documents/check-image
+    // 10.1 Immagine con dimensioni enormi: il modulo «Controlla un'immagine» della pagina /documents.
     public static void MapCheckImage(RouteGroupBuilder group)
     {
         group.MapPost("/documents/check-image", async (IFormFile file) =>
@@ -20,31 +21,35 @@ public static class ToolsApi
             header.Position = 0;
             ImageSizeGuard.Result result = ImageSizeGuard.Check(header, file.Length);   // controlla, non alloca
             sw.Stop();
-            return Results.Ok(new
+            return Ch10Header.BackTo("/documents", new()
             {
-                fileBytes = file.Length,
-                declaredWidth = width,
-                declaredHeight = height,
-                accepted = result == ImageSizeGuard.Result.Ok,
-                result = result.ToString(),
-                ms = sw.ElapsedMilliseconds,
+                ["byte"] = file.Length.ToString(),
+                ["larghezza"] = width.ToString(),
+                ["altezza"] = height.ToString(),
+                ["controllo"] = result.ToString(),
+                ["ms"] = sw.ElapsedMilliseconds.ToString(),
             });
-        }).DisableAntiforgery();
+        });
     }
 
-    // 10.2 Espressione regolare lenta (ReDoS): POST /notes/validate
+    // 10.2 Espressione regolare lenta (ReDoS): il modulo «Controlla un testo» della pagina /documents.
     public static void MapValidate(RouteGroupBuilder group)
     {
-        group.MapPost("/notes/validate", (Ch10Header.ValidateRequest body) =>
+        group.MapPost("/notes/validate", ([FromForm] string? text) =>
         {
             var sw = Stopwatch.StartNew();
-            SafeTextValidator.Outcome outcome = SafeTextValidator.Check(body.Text);   // limite + tempo massimo
+            SafeTextValidator.Outcome outcome = SafeTextValidator.Check(text);   // limite + tempo massimo
             sw.Stop();
-            return Results.Ok(new { length = (body.Text ?? "").Length, outcome = outcome.ToString(), ms = sw.ElapsedMilliseconds });
-        }).DisableAntiforgery();
+            return Ch10Header.BackTo("/documents", new()
+            {
+                ["caratteri"] = (text ?? "").Length.ToString(),
+                ["esito"] = outcome.ToString(),
+                ["ms"] = sw.ElapsedMilliseconds.ToString(),
+            });
+        });
     }
 
-    // 10.3 Esportazione senza limiti: GET /orders/export?count=N
+    // 10.3 Esportazione senza limiti: il modulo «Esporta in ZIP» della pagina /orders, GET /orders/export?count=N
     public static void MapExport(RouteGroupBuilder group)
     {
         group.MapGet("/orders/export", async (int count, CancellationToken ct) =>
@@ -57,11 +62,15 @@ public static class ToolsApi
             }
             catch (InvalidOperationException ex)
             {
-                sw.Stop();
-                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
+                return Ch10Header.BackTo("/orders", new() { ["elementi"] = count.ToString(), ["errore"] = ex.Message });
             }
             sw.Stop();
-            return Results.Ok(new { requested = count, sizeKB = output.Length / 1024, ms = sw.ElapsedMilliseconds });
+            return Ch10Header.BackTo("/orders", new()
+            {
+                ["elementi"] = count.ToString(),
+                ["kb"] = (output.Length / 1024).ToString(),
+                ["ms"] = sw.ElapsedMilliseconds.ToString(),
+            });
         });
     }
 }

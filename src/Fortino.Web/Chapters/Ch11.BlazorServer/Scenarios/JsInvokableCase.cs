@@ -12,7 +12,7 @@ public sealed class JsInvokableCase : Ch11Case
     public override IReadOnlyList<string> LabUsers => ["lumen"];
     public override string Title => "Metodo chiamato dalla console";
     public override string Summary =>
-        "Ottica Lumen chiama dalla console del browser il metodo che cambia le quantità: mette 600 sedie nell'ordine di un altro cliente e -20 toner nel suo.";
+        "Ottica Lumen chiama dalla console del browser il metodo che cambia le quantità: mette 600 sedie nell'ordine di un altro cliente e 500 toner nel suo, oltre il massimo del cursore.";
     public override string BookReference => "capitolo 11, caso 11.2";
     public override CodeLocation VulnerableCode => new("Ch11.BlazorServer/Vulnerable/QuantityEditor.cs", "quantita-vulnerabile");
     public override CodeLocation SecureCode => new("Ch11.BlazorServer/Secure/QuantityEditor.cs", "quantita-corretta");
@@ -23,8 +23,9 @@ public sealed class JsInvokableCase : Ch11Case
     private static readonly IReadOnlyList<string> Steps =
     [
         "Dopo l'accesso sei nel portale come Ottica Lumen, nella pagina «I miei ordini in bozza» (`/portal/quantities`). La tabella mostra le righe dei tuoi ordini, con il numero di riga e un cursore da 1 a 99.",
+        "Prima l'uso normale: sposta il cursore della riga 8 (toner) e lascialo. La quantità cambia e la tabella si rilegge da sola. Il cursore chiama il metodo `SetQuantity` dell'oggetto che cambia le quantità: è lo stesso metodo che userai dalla console.",
         "La pagina lascia l'oggetto che cambia le quantità raggiungibile dalla console come `window.fortinoCh11.editor`. Apri la console (F12 › Console) e chiamalo su una riga di un ALTRO cliente (la riga 9, sedie nell'ordine di Ferramenta Nord) con una quantità che il cursore non permette: `window.fortinoCh11.editor.invokeMethodAsync('SetQuantity', 9, 600)`",
-        "Poi sulla tua riga 8 (toner) con una quantità negativa: `window.fortinoCh11.editor.invokeMethodAsync('SetQuantity', 8, -20)`",
+        "Poi sulla tua riga 8 (toner) con una quantità oltre il massimo del cursore: `window.fortinoCh11.editor.invokeMethodAsync('SetQuantity', 8, 500)`",
         "Premi «Rileggi dal database»: vedi la tua riga 8.",
         "La riga 9 è di un altro cliente, quindi il tuo portale non la mostra. Per vederla, dal menu utente in alto a destra scegli «Entra come…» › anna (Amministratore), poi Ordini e apri ORD-2026-0106 (Ferramenta Nord). Non premere «Ripristina i dati» prima, o le modifiche spariscono.",
     ];
@@ -34,14 +35,14 @@ public sealed class JsInvokableCase : Ch11Case
         StartPath: "/portal/quantities",
         Vulnerable: new TrialInstructions(
             Steps,
-            Expected: "La tua riga 8 diventa -20, una quantità che il cursore non permette. La chiamata sulla riga 9 (di un altro cliente) non dà errore: aprendo ORD-2026-0106 come anna, la riga delle sedie è a 600 e il totale dell'ordine è 113.400,00 € (invece di 1.134,00 €).",
-            Proves: "Il metodo [JSInvokable] si fida di quello che arriva dal browser: accetta qualunque riga (anche di un altro cliente) e qualunque quantità (anche negativa), perché la pagina mostrava solo valori leciti.",
+            Expected: "La tua riga 8 diventa 500, una quantità che il cursore non permette. La chiamata sulla riga 9 (di un altro cliente) non dà errore: aprendo ORD-2026-0106 come anna, la riga delle sedie è a 600 e il totale dell'ordine è 113.400,00 € (invece di 1.134,00 €).",
+            Proves: "Il metodo [JSInvokable] si fida di quello che arriva dal browser: accetta qualunque riga (anche di un altro cliente) e qualunque quantità (anche oltre il massimo), perché la pagina mostrava solo valori leciti.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch11.BlazorServer/Vulnerable/QuantityEditor.cs",
                 Line: "sulla riga dell'`UPDATE OrderLine`, nella regione `quantita-vulnerabile`",
                 Watch:
                 [
-                    "`lineId` e `quantity` sono quelli scritti nella console (9 e 600, oppure 8 e -20): non vengono controllati.",
+                    "`lineId` e `quantity` sono quelli scritti nella console (9 e 600, oppure 8 e 500): non vengono controllati.",
                 ])),
         Secure: new TrialInstructions(
             Steps,
@@ -52,7 +53,7 @@ public sealed class JsInvokableCase : Ch11Case
                 Line: "sulla riga `bool quantityIsValid = ...`, nella regione `quantita-corretta`",
                 Watch:
                 [
-                    "Con quantità 600 o -20 `quantityIsValid` è false e si restituisce subito false.",
+                    "Con quantità 600 o 500 `quantityIsValid` è false e si restituisce subito false.",
                     "Con una quantità valida ma riga di un altro cliente, l'UPDATE non cambia righe (il filtro sul cliente) e si restituisce false.",
                 ])));
 
@@ -76,8 +77,8 @@ public sealed class JsInvokableCase : Ch11Case
 
         run.Log($"Console: SetQuantity({ForeignLine}, 600), riga di un ordine di Ferramenta Nord. " +
                 $"Risposta: {await setQuantity(ForeignLine, 600)}.");
-        run.Log($"Console: SetQuantity({OwnLine}, -20), riga del suo ordine, quantità negativa. " +
-                $"Risposta: {await setQuantity(OwnLine, -20)}.");
+        run.Log($"Console: SetQuantity({OwnLine}, 500), riga del suo ordine, oltre il massimo del cursore. " +
+                $"Risposta: {await setQuantity(OwnLine, 500)}.");
 
         var after = await DraftLines.ByIdAsync(factory, OwnLine, ForeignLine);
         LogLines(run, "DOPO l'attacco", after);

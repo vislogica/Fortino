@@ -3,13 +3,13 @@ using Fortino.Web.Lab;
 namespace Fortino.Web.Chapters.Ch10.Scenarios;
 
 // Caso 10.2: un testo preparato apposta rende lentissima una validazione fatta con un'espressione
-// regolare vulnerabile (ReDoS). Si prova dalla console: si manda il testo e si guarda il tempo (`ms`).
+// regolare vulnerabile (ReDoS). Si prova dalla pagina «Documenti»: si controlla il testo e si guarda il tempo.
 public sealed class SlowRegexCase : Ch10Case
 {
     public override string Slug => "slow-regex";
     public override string Title => "Espressione regolare lenta";
     public override string Summary =>
-        "Dalla console mandi un testo di 26 lettere \"a\" e un punto esclamativo: nella versione vulnerabile la validazione tiene occupata la CPU per secondi (ReDoS).";
+        "Nella pagina «Documenti» controlli un testo di 26 lettere «a» e un punto esclamativo: nella versione vulnerabile la validazione tiene occupata la CPU per secondi (ReDoS).";
     public override string BookReference => "capitolo 10, caso 10.2";
     public override CodeLocation VulnerableCode => new("Ch10.ResourceConsumption/Vulnerable/SlowRegex.cs", "regex-vulnerabile");
     public override CodeLocation SecureCode => new("Ch10.ResourceConsumption/Secure/SafeTextValidator.cs", "validazione-corretta");
@@ -17,23 +17,19 @@ public sealed class SlowRegexCase : Ch10Case
     // Molte 'a' seguite da un carattere che non corrisponde: fa esplodere il backtracking.
     public static readonly string Payload = new string('a', 26) + "!";
 
-    private static readonly string Send =
-        "fetch('/notes/validate', {method:'POST', headers:{'Content-Type':'application/json'}, " +
-        "body: JSON.stringify({text: 'a'.repeat(26) + '!'})}).then(r=>r.json()).then(console.log)";
-
     private static readonly IReadOnlyList<string> Steps =
     [
-        "Dopo l'accesso sei nel gestionale come operatore. Apri la console (F12 › Console).",
-        "Manda all'indirizzo che valida un testo una stringa di 26 lettere \"a\" e un punto esclamativo: `" + Send + "`",
-        "Guarda il campo `ms` della risposta: quanto tempo ha impiegato il server.",
+        "Dopo l'accesso sei nel gestionale come Mario Bianchi (Operatore), nella pagina «Documenti».",
+        "Nel riquadro «Controlla un testo» scrivi `aaaa` e premi «Controlla il testo»: la risposta arriva subito, valido.",
+        "Ora scrivi 26 lettere «a» seguite da un punto esclamativo, cioè `aaaaaaaaaaaaaaaaaaaaaaaaaa!`, e premi di nuovo «Controlla il testo». Conta quanto aspetti.",
     ];
 
     public override ManualTrial Trial => new(
         Username: "mario",
-        StartPath: "/orders",
+        StartPath: "/documents",
         Vulnerable: new TrialInstructions(
             Steps,
-            Expected: "La risposta arriva dopo secondi: `ms` è nell'ordine delle migliaia. Il confronto `^(a+)+$` ha provato circa 33 milioni di modi di dividere le 26 lettere prima di arrendersi.",
+            Expected: "La pagina resta ferma per secondi, poi il messaggio dice «controllato in» qualche migliaio di ms: non valido. Il confronto `^(a+)+$` ha provato circa 33 milioni di modi di dividere le 26 lettere prima di arrendersi.",
             Proves: "Un testo di 27 caratteri ha tenuto occupata la CPU del server per secondi. Poche richieste del genere bastano a bloccare il servizio.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch10.ResourceConsumption/Vulnerable/SlowRegex.cs",
@@ -44,7 +40,7 @@ public sealed class SlowRegexCase : Ch10Case
                 ])),
         Secure: new TrialInstructions(
             Steps,
-            Expected: "La risposta arriva subito: `ms` è intorno a 100 e `outcome` vale `TimedOut`. Il tempo massimo ha interrotto il confronto e il testo è stato rifiutato.",
+            Expected: "La risposta arriva subito: il messaggio rosso dice «Testo rifiutato dopo» circa 100 ms. Il tempo massimo ha interrotto il confronto e il testo è stato rifiutato.",
             Proves: "La stessa espressione, con un limite di lunghezza e un tempo massimo di 100 ms, non si lascia bloccare: chi costruisce il testo apposta non tiene occupato il server.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch10.ResourceConsumption/Secure/SafeTextValidator.cs",

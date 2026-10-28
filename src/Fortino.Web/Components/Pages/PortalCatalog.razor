@@ -1,0 +1,71 @@
+@page "/portal/catalogo"
+@attribute [Authorize(Policy = Policies.Customer)]
+@inject FortinoQueries Queries
+
+@* Il catalogo del portale clienti. «Aggiungi all'ordine» porta alla pagina di conferma
+   /portal/carrello con tutti i dati della riga nell'indirizzo, prezzo compreso: è qui che
+   comincia il caso 8.2 del Laboratorio (capitolo 8). *@
+
+<PageTitle>Catalogo · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Catalogo</MudText>
+
+@if (!_loaded)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_draft is null)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+        Non hai ordini in bozza: gli articoli si aggiungono solo a un ordine in bozza.
+    </MudAlert>
+}
+else
+{
+    <MudText Typo="Typo.body2" Class="mb-3">Gli articoli si aggiungono al tuo ordine in bozza <b>@_draft.Number</b>.</MudText>
+    <MudSimpleTable Dense="true" Outlined="true" Elevation="0">
+        <thead>
+            <tr><th>Articolo</th><th>Codice</th><th style="text-align:right">Prezzo</th><th style="width:330px"></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var product in _products)
+            {
+                <tr>
+                    <td>@product.Name</td>
+                    <td>@product.Code</td>
+                    <td style="text-align:right">@Labels.Money(product.UnitPrice)</td>
+                    <td>
+                        <form method="get" action="/portal/carrello" class="d-flex align-center fortino-menu-form" style="gap:8px">
+                            <input type="hidden" name="ordine" value="@_draft.Id" />
+                            <input type="hidden" name="prodotto" value="@product.Id" />
+                            <input type="hidden" name="descrizione" value="@product.Name" />
+                            <input type="hidden" name="prezzo" value="@product.UnitPrice.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" />
+                            <input class="fortino-input" style="width:90px" name="quantita" type="number" min="1" value="1" aria-label="Quantità di @product.Name" />
+                            <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">Aggiungi all'ordine</MudButton>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<Product> _products = [];
+    private Order? _draft;
+    private bool _loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        ClaimsPrincipal user = (await AuthState).User;
+        int? customerId = user.GetCustomerId();
+        if (customerId is not null)
+        {
+            var orders = await Queries.GetOrdersForCustomerAsync(customerId.Value);
+            _draft = orders.FirstOrDefault(o => o.Status == OrderStatus.Draft);
+        }
+        _products = await Queries.GetProductsAsync();
+        _loaded = true;
+    }
+}

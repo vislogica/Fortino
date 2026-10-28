@@ -3,37 +3,31 @@ using Fortino.Web.Lab;
 namespace Fortino.Web.Chapters.Ch10.Scenarios;
 
 // Caso 10.1: un file piccolo dichiara dimensioni enormi e fa allocare al server tanta memoria.
-// Si prova dalla console: si manda un'intestazione PNG di 24 byte che dichiara 5000 × 5000 pixel.
+// Si prova dalla pagina «Documenti»: si carica un'intestazione PNG di 24 byte che dichiara 5000 × 5000 pixel.
 public sealed class HugeImageCase : Ch10Case
 {
     public override string Slug => "huge-image";
     public override string Title => "Immagine con dimensioni enormi";
     public override string Summary =>
-        "Dalla console mandi un file immagine di 24 byte che dichiara 5000 × 5000 pixel: nella versione vulnerabile il server alloca decine di MB da pochi byte di input.";
+        "Carichi nella pagina «Documenti» un file immagine di 24 byte che dichiara 5000 × 5000 pixel: nella versione vulnerabile il server alloca decine di MB da pochi byte di input.";
     public override string BookReference => "capitolo 10, caso 10.1";
     public override CodeLocation VulnerableCode => new("Ch10.ResourceConsumption/Vulnerable/UnboundedImage.cs", "immagine-vulnerabile");
     public override CodeLocation SecureCode => new("Ch10.ResourceConsumption/Secure/ImageSizeGuard.cs", "limite-immagine-corretto");
 
-    private const string BuildAndSend =
-        "const b = new Uint8Array(24); b.set([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]); " +
-        "const be = (o,v) => { b[o]=v>>>24; b[o+1]=v>>>16&255; b[o+2]=v>>>8&255; b[o+3]=v&255; }; " +
-        "be(16,5000); be(20,5000); const f = new FormData(); f.append('file', new Blob([b], {type:'image/png'}), 'enorme.png'); " +
-        "fetch('/documents/check-image', {method:'POST', body:f}).then(r=>r.json()).then(console.log)";
-
     private static readonly IReadOnlyList<string> Steps =
     [
-        "Dopo l'accesso sei nel gestionale come operatore. Apri la console (F12 › Console).",
-        "Costruisci un'intestazione PNG di 24 byte che dichiara un'immagine di 5000 × 5000 pixel e mandala " +
-        "all'indirizzo che controlla le immagini: `" + BuildAndSend + "`",
-        "Guarda la risposta: `fileBytes` è 24, ma `declaredWidth` e `declaredHeight` sono 5000.",
+        "Dopo l'accesso sei nel gestionale come Mario Bianchi (Operatore), nella pagina «Documenti».",
+        "Scarica il file di prova: scrivi `/lab/file/immagine-enorme.png` nella barra degli indirizzi, dopo il nome del sito, e premi Invio. Il browser salva `immagine-enorme.png`: 24 byte in tutto.",
+        "Torna a «Documenti». Nel riquadro «Controlla un'immagine» scegli il file appena scaricato e premi «Controlla l'immagine».",
+        "Leggi il messaggio: quanti byte pesa il file, quanti pixel dichiara e quanta memoria ha preparato il server.",
     ];
 
     public override ManualTrial Trial => new(
         Username: "mario",
-        StartPath: "/orders",
+        StartPath: "/documents",
         Vulnerable: new TrialInstructions(
             Steps,
-            Expected: "La risposta ha `allocatedMB` intorno a 95: da 24 byte di file il server ha preparato in memoria una bitmap di circa 95 MB.",
+            Expected: "Il messaggio arancione dice «Anteprima pronta»: il file pesa 24 byte ma dichiara 5000 × 5000 pixel, e il server ha preparato circa 95 MB di memoria.",
             Proves: "Il server si fida delle dimensioni dichiarate nel file e alloca la memoria corrispondente. Poche immagini del genere insieme esauriscono la memoria.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch10.ResourceConsumption/Vulnerable/UnboundedImage.cs",
@@ -44,7 +38,7 @@ public sealed class HugeImageCase : Ch10Case
                 ])),
         Secure: new TrialInstructions(
             Steps,
-            Expected: "La risposta ha `accepted` a false e `result` uguale a `TooManyPixels`, con `allocatedMB` assente: niente è stato allocato.",
+            Expected: "Il messaggio rosso dice «Immagine rifiutata»: dichiara 5000 × 5000 pixel, oltre il limite, e il server non ha preparato memoria.",
             Proves: "La versione corretta legge le dimensioni dichiarate dall'intestazione e le confronta con un limite, senza mai caricare l'immagine.",
             Breakpoint: new BreakpointHint(
                 File: "Chapters/Ch10.ResourceConsumption/Secure/ImageSizeGuard.cs",

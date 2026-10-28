@@ -1,37 +1,38 @@
 namespace Fortino.Web.Chapters.Ch18.Vulnerable;
 
-// VERSIONE VULNERABILE. Endpoint che ricevono dati non fidati e li leggono con i metodi insicuri.
+// VERSIONE VULNERABILE. Le importazioni da file delle pagine Clienti e Ordini, lette con i metodi
+// insicuri. La riga che conta sta in UnsafeXmlImport e UnsafeDeserialization.
 public static class ImportApi
 {
-    public static void Map(RouteGroupBuilder group)
+    // Caso 18.1: «Importa un cliente da XML» della pagina Clienti.
+    public static void MapXml(RouteGroupBuilder group)
     {
-        // Importa un cliente da un XML.
-        group.MapPost("/import/xml", async (HttpRequest http) =>
+        group.MapPost("/import/xml", async (IFormFile file, Ch18Imports imports) =>
         {
-            // PASSO 1: si legge l'XML ricevuto nel corpo della richiesta.
-            using StreamReader bodyReader = new StreamReader(http.Body);
-            string xml = await bodyReader.ReadToEndAsync();
+            // PASSO 1: si legge il file ricevuto.
+            string xml = await Ch18Imports.ReadAsync(file);
 
             // PASSO 2: lo si interpreta con le impostazioni permissive.
             string? name = UnsafeXmlImport.ReadCustomerName(xml);
-            IResult response = Results.Ok(new { name });
-            return response;
-        });
 
-        // Importa un ordine da un JSON.
-        group.MapPost("/import/json", async (HttpRequest http) =>
+            // PASSO 3: il cliente entra nell'anagrafica con il nome letto dal file.
+            return await imports.AddCustomerAsync(name);
+        });
+    }
+
+    // Caso 18.2: «Importa un ordine da file» della pagina Ordini.
+    public static void MapJson(RouteGroupBuilder group)
+    {
+        group.MapPost("/import/json", async (IFormFile file) =>
         {
-            // PASSO 1: si legge il JSON ricevuto nel corpo della richiesta.
-            using StreamReader bodyReader = new StreamReader(http.Body);
-            string json = await bodyReader.ReadToEndAsync();
+            // PASSO 1: si legge il file ricevuto.
+            string json = await Ch18Imports.ReadAsync(file);
 
             // PASSO 2: lo si interpreta lasciando scegliere il tipo ai dati.
             object? result = UnsafeDeserialization.Read(json);
 
-            // PASSO 3: si risponde con il nome del tipo che è stato creato.
-            string? createdType = result?.GetType().FullName;
-            IResult response = Results.Ok(new { type = createdType });
-            return response;
+            // PASSO 3: si torna alla pagina dicendo quale classe è stata costruita.
+            return Ch18Imports.ShowImported(result);
         });
     }
 }

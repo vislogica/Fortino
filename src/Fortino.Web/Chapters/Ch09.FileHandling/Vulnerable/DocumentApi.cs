@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using Fortino.Web.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fortino.Web.Chapters.Ch09.Vulnerable;
 
@@ -14,9 +15,14 @@ public static class DocumentApi
     // Caricamento: POST /orders/{orderId}/documents
     public static void MapUpload(RouteGroupBuilder group)
     {
-        group.MapPost("/orders/{orderId:int}/documents", async (int orderId, IFormFile file,
+        // Il modulo «Allega un documento» della pagina dell'ordine manda il file e, se compilato,
+        // il campo «Nome del documento».
+        group.MapPost("/orders/{orderId:int}/documents", async (int orderId, IFormFile file, [FromForm] string? name,
             DocumentStore store, DbConnectionFactory factory) =>
         {
+            // Il nome del documento: quello scritto nel modulo o, se vuoto, quello del file.
+            string chosenName = string.IsNullOrWhiteSpace(name) ? file.FileName : name;
+
             // Il file si legge in memoria e si salva con il NOME SCELTO DA CHI CARICA.
             byte[] content;
             await using (var buffer = new MemoryStream())
@@ -26,7 +32,7 @@ public static class DocumentApi
             }
 
             // Qui avviene l'errore: il nome dell'utente decide il percorso (vedi UnsafeDocumentIO).
-            string writtenPath = UnsafeDocumentIO.SaveByName(store, file.FileName, content);
+            string writtenPath = UnsafeDocumentIO.SaveByName(store, chosenName, content);
 
             // Si registra il documento nel database tenendo il nome scelto dall'utente.
             string uploadedAt = DateTime.UtcNow.ToString("o");
@@ -40,16 +46,16 @@ public static class DocumentApi
             long id = await connection.ExecuteScalarAsync<long>(sql, new
             {
                 orderId,
-                name = file.FileName,
+                name = chosenName,
                 type = file.ContentType ?? "application/octet-stream",
                 size = file.Length,
                 now = uploadedAt,
             });
 
-            // Nella risposta si vede DOVE è finito il file: con un nome normale resta nella
-            // cartella dei documenti, con un nome che risale di cartella finisce fuori.
-            return Results.Ok(new { id, path = writtenPath });
-        }).DisableAntiforgery();
+            // Si torna all'ordine. Per il Laboratorio la pagina mostra DOVE è finito il file: con un
+            // nome normale resta nella cartella dei documenti, con un nome che risale di cartella finisce fuori.
+            return Results.LocalRedirect($"/orders/{orderId}?caricato={Uri.EscapeDataString(writtenPath)}");
+        });
     }
 
     // Scaricamento: GET /orders/{orderId}/documents/content?name=...

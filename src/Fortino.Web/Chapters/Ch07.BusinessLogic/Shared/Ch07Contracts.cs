@@ -7,11 +7,7 @@ namespace Fortino.Web.Chapters.Ch07;
 
 public sealed record UpdateInvoiceLineRequest(int Quantity, decimal UnitPrice);
 
-public sealed record ChangeOrderStatusRequest(OrderStatus Status);
-
 public sealed record AddOrderLineRequest(int ProductId, int Quantity);
-
-public sealed record ChangePaymentIbanRequest(string Iban);
 
 // Quello che compare sul documento della fattura (il PDF, in un gestionale vero).
 public sealed class InvoiceDocument

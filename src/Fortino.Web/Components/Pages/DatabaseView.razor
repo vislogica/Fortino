@@ -1,0 +1,41 @@
+@page "/database"
+@attribute [Authorize(Roles = "Admin")]
+@inject DbConnectionFactory Factory
+@using Dapper
+
+@* Solo per il Laboratorio: la tabella degli utenti come la vedrebbe chi ha rubato una copia del
+   database. Un gestionale vero non ha questa pagina. Qui si guardano le impronte delle password
+   del caso 12.1 (capitolo 12). *@
+
+<PageTitle>Vista database · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-1">Vista database</MudText>
+<MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">
+    Solo nel Laboratorio: la tabella <code>AppUser</code> com'è salvata, come la vedrebbe chi ha rubato
+    una copia del database. La colonna <code>PasswordHash</code> contiene l'impronta della password,
+    non la password.
+</MudText>
+
+<MudSimpleTable Dense="true" Outlined="true" Elevation="0">
+    <thead>
+        <tr><th style="width:160px">Username</th><th>PasswordHash</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var row in _rows)
+        {
+            <tr>
+                <td>@row.Username</td>
+                <td style="font-family:Consolas,monospace;font-size:.8rem;overflow-wrap:anywhere">@row.PasswordHash</td>
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+
+@code {
+    private IReadOnlyList<(string Username, string PasswordHash)> _rows = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await Factory.OpenAsync();
+        _rows = (await db.QueryAsync<(string, string)>("SELECT Username, PasswordHash FROM AppUser ORDER BY Id;")).AsList();
+    }
+}

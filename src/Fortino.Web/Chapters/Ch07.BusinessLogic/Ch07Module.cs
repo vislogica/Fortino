@@ -1,16 +1,40 @@
 using Fortino.Web.Auth;
 using Fortino.Web.Chapters.Ch07.Scenarios;
+using Fortino.Web.Domain;
 using Fortino.Web.Lab;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fortino.Web.Chapters.Ch07;
 
 // Capitolo 7 — Logica di business e progettazione insicura.
-// Registra le due versioni dei servizi e i loro indirizzi:
-//   /lab/ch07/vulnerable/...  → Vulnerable.InvoiceService, Vulnerable.OrderService
-//   /lab/ch07/secure/...      → Secure.InvoiceService,     Secure.OrderService
+// Registra le due versioni dei servizi e le azioni dei moduli delle pagine vere che li usano:
+// la modifica di una fattura, l'IBAN nelle impostazioni, i pulsanti di stato dell'ordine e
+// l'aggiunta di un articolo dal portale clienti.
 public sealed class Ch07Module : ILabChapterModule
 {
     public int Chapter => 7;
+
+    public sealed class InvoiceLineForm
+    {
+        public int Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+    }
+
+    public sealed class IbanForm
+    {
+        public string? Iban { get; set; }
+    }
+
+    public sealed class OrderStatusForm
+    {
+        public OrderStatus Status { get; set; }
+    }
+
+    public sealed class OrderLineForm
+    {
+        public int ProductId { get; set; }
+        public int Quantity { get; set; }
+    }
 
     public void AddServices(IServiceCollection services)
     {
@@ -28,53 +52,44 @@ public sealed class Ch07Module : ILabChapterModule
 
     public void MapEndpoints(IEndpointRouteBuilder app)
     {
-        // Gli endpoint veri delle operazioni di business. Dentro, il Laboratorio sceglie quale versione
-        // del codice risponde (vulnerabile o corretta) leggendo il cookie della prova: fuori da una
-        // prova è sempre quella corretta. Il lettore chiama questi indirizzi dalla console del browser.
-        var group = app.MapGroup("").AddEndpointFilter(TranslateExceptions);
+        // Le azioni dei moduli. Dentro, il Laboratorio sceglie quale versione del codice risponde
+        // (vulnerabile o corretta) leggendo il cookie della prova: fuori da una prova è sempre quella
+        // corretta. Dopo l'azione si torna alla pagina, con l'esito o il messaggio d'errore nell'indirizzo.
+        // [FromForm] fa scattare la verifica automatica del token antiforgery.
 
-        // 7.1 Fattura emessa modificabile.
-        group.MapPut("/staff/invoices/{invoiceId:int}/lines/{lineId:int}",
-                async (int invoiceId, int lineId, UpdateInvoiceLineRequest body, HttpContext http, IServiceProvider sp) =>
-                {
-                    await Service<IInvoiceService>(http, sp, "issued-invoice").UpdateLineAsync(invoiceId, lineId, body);
-                    return Results.NoContent();
-                })
+        // 7.1 Fattura emessa modificabile: il modulo della pagina /invoices/{numero}/modifica.
+        app.MapPost("/invoices/{invoiceId:int}/righe/{lineId:int}",
+                (int invoiceId, int lineId, [FromForm] InvoiceLineForm form, HttpContext http, IServiceProvider sp) =>
+                    RunAndReturnAsync($"/invoices/{invoiceId}/modifica", () =>
+                        Service<IInvoiceService>(http, sp, "issued-invoice")
+                            .UpdateLineAsync(invoiceId, lineId, new UpdateInvoiceLineRequest(form.Quantity, form.UnitPrice))))
             .RequireAuthorization(Policies.Staff);
 
-        // 7.2 Dati non congelati: il documento della fattura.
-        group.MapGet("/staff/invoices/{invoiceId:int}/document",
-                async (int invoiceId, HttpContext http, IServiceProvider sp) =>
-                    await Service<IInvoiceService>(http, sp, "frozen-data").GetDocumentAsync(invoiceId)
-                        is { } document ? Results.Ok(document) : Results.NotFound())
-            .RequireAuthorization(Policies.Staff);
-
-        // 7.2 Operazione legittima riservata agli amministratori (cambio IBAN aziendale), uguale per le due versioni.
-        group.MapPut("/staff/settings/payment-iban",
-                async (ChangePaymentIbanRequest body, HttpContext http, CompanySettingsService settings) =>
-                {
-                    await settings.ChangePaymentIbanAsync(body.Iban, http.User.Identity!.Name!);
-                    return Results.NoContent();
-                })
+        // 7.2 Operazione legittima riservata agli amministratori (cambio IBAN aziendale), uguale per le
+        // due versioni: il modulo della pagina /settings. La differenza sta nel documento della fattura.
+        app.MapPost("/settings/iban",
+                (HttpContext http, [FromForm] IbanForm form, CompanySettingsService settings) =>
+                    RunAndReturnAsync("/settings", () =>
+                        settings.ChangePaymentIbanAsync((form.Iban ?? "").Trim(), http.User.Identity!.Name!)))
             .RequireAuthorization(p => p.RequireRole("Admin"));
 
-        // 7.3 Salto di stato.
-        group.MapPost("/staff/orders/{orderId:int}/status",
-                async (int orderId, ChangeOrderStatusRequest body, HttpContext http, IServiceProvider sp) =>
-                {
-                    await Service<IOrderService>(http, sp, "skipped-state").ChangeStatusAsync(orderId, body.Status);
-                    return Results.NoContent();
-                })
+        // 7.3 Passaggio di stato: i pulsanti «Approva», «Spedisci» e «Annulla» della pagina /orders/{numero}.
+        app.MapPost("/orders/{orderId:int}/stato",
+                (int orderId, [FromForm] OrderStatusForm form, HttpContext http, IServiceProvider sp) =>
+                    RunAndReturnAsync($"/orders/{orderId}", () =>
+                        Service<IOrderService>(http, sp, "skipped-state").ChangeStatusAsync(orderId, form.Status)))
             .RequireAuthorization(Policies.Staff);
 
-        // 7.4 Quantità negativa. Portale clienti: il cliente si legge dall'utente collegato, mai dalla richiesta.
-        group.MapPost("/portal/orders/{orderId:int}/lines",
-                async (int orderId, AddOrderLineRequest body, HttpContext http, IServiceProvider sp) =>
+        // 7.4 Quantità negativa: il modulo «Aggiungi un articolo» della pagina /portal/orders/{numero}.
+        // Il cliente si legge dall'utente collegato, mai dalla richiesta.
+        app.MapPost("/portal/orders/{orderId:int}/righe",
+                (int orderId, [FromForm] OrderLineForm form, HttpContext http, IServiceProvider sp) =>
                 {
                     var customerId = http.User.GetCustomerId();
-                    if (customerId is null) return Results.Forbid();
-                    await Service<IOrderService>(http, sp, "negative-quantity").AddLineAsync(orderId, customerId.Value, body);
-                    return Results.NoContent();
+                    if (customerId is null) return Task.FromResult(Results.Forbid());
+                    return RunAndReturnAsync($"/portal/orders/{orderId}", () =>
+                        Service<IOrderService>(http, sp, "negative-quantity")
+                            .AddLineAsync(orderId, customerId.Value, new AddOrderLineRequest(form.ProductId, form.Quantity)));
                 })
             .RequireAuthorization(Policies.Customer);
     }
@@ -87,20 +102,22 @@ public sealed class Ch07Module : ILabChapterModule
         return sp.GetRequiredKeyedService<T>(variant);
     }
 
-    // Le regole violate diventano 400/409 con un messaggio leggibile; i "non trovato" diventano 404.
-    private static async ValueTask<object?> TranslateExceptions(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    // Esegue l'azione e torna alla pagina: "?esito=salvato" se è andata, "?errore=..." con il
+    // messaggio leggibile se una regola del lavoro l'ha rifiutata.
+    private static async Task<IResult> RunAndReturnAsync(string page, Func<Task> action)
     {
         try
         {
-            return await next(context);
+            await action();
+            return Results.LocalRedirect($"{page}?esito=salvato");
         }
         catch (BusinessRuleException ex)
         {
-            return Results.Problem(detail: ex.Message, statusCode: ex.StatusCode);
+            return Results.LocalRedirect($"{page}?errore={Uri.EscapeDataString(ex.Message)}");
         }
         catch (KeyNotFoundException)
         {
-            return Results.NotFound();
+            return Results.LocalRedirect($"{page}?errore={Uri.EscapeDataString("Operazione non possibile: il documento non esiste o non è tuo.")}");
         }
     }
 }

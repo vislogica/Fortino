@@ -15,7 +15,7 @@ public sealed record UpdateProfileRequest(string DisplayName, string Email);
 #endregion
 
 #region libro: dto-riga-ordine
-// Il cliente sceglie solo il prodotto e la quantità. Il prezzo non c'è.
-[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+// Il cliente sceglie solo il prodotto e la quantità. Il prezzo non c'è: se il modulo lo
+// manda lo stesso, viene ignorato.
 public sealed record AddOrderLineRequest(int ProductId, int Quantity);
 #endregion

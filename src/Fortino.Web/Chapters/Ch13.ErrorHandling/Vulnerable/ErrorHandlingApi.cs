@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Fortino.Web.Auth;
 using Fortino.Web.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fortino.Web.Chapters.Ch13.Vulnerable;
 
@@ -12,21 +13,21 @@ public static class ErrorHandlingApi
     {
         #region libro: errore-dettagli-vulnerabile
         // Se l'operazione fallisce, il messaggio tecnico dell'eccezione (con il testo dell'errore del
-        // database, cioè nomi di tabelle e colonne) viene restituito al client.
-        group.MapPost("/invoices/issue", async (IssueInvoiceRequest request, DbConnectionFactory factory) =>
+        // database, cioè nomi di tabelle e colonne) viene mostrato all'utente nella finestra di errore.
+        group.MapPost("/invoices/issue", async ([FromForm] IssueInvoiceRequest request, DbConnectionFactory factory) =>
         {
             try
             {
                 // PASSO 1: si prova a emettere la fattura.
                 await Ch13Shared.IssueInvoiceAsync(factory, request);
-                return Results.NoContent();
+                return Results.LocalRedirect("/invoices");
             }
             catch (Exception ex)
             {
                 // PASSO 2: qualcosa è andato storto. Il testo completo dell'eccezione, con nomi di
-                // tabelle, colonne e righe di codice, finisce nella risposta al client.
+                // tabelle, colonne e righe di codice, finisce nella finestra che vede l'utente.
                 string errorDetails = ex.ToString();
-                IResult response = Results.Problem(detail: errorDetails, statusCode: StatusCodes.Status500InternalServerError);
+                IResult response = Ch13Shared.ShowError(request.InvoiceId, errorDetails);
                 return response;
             }
         });

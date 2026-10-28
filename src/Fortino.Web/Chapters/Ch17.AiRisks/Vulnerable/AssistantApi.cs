@@ -7,7 +7,7 @@ namespace Fortino.Web.Chapters.Ch17.Vulnerable;
 // VERSIONE VULNERABILE. Codice volutamente insicuro, solo per il Laboratorio.
 public static class AssistantApi
 {
-    public static void Map(RouteGroupBuilder group)
+    public static void MapAsk(RouteGroupBuilder group)
     {
         #region libro: prompt-injection-vulnerabile
         // Caso 17.1 - prompt injection. Istruzioni di sistema, note degli ordini (dati) e
@@ -34,7 +34,10 @@ public static class AssistantApi
             return response;
         });
         #endregion
+    }
 
+    public static void MapOrders(RouteGroupBuilder group)
+    {
         #region libro: accesso-eccessivo-vulnerabile
         // Caso 17.2 - accesso eccessivo (confused deputy, il "delegato confuso"). L'assistente può
         // leggere gli ordini di TUTTI i clienti e sceglie a chi guardare in base al nome scritto

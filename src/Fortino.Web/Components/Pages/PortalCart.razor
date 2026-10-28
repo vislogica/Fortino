@@ -1,0 +1,50 @@
+@page "/portal/carrello"
+@attribute [Authorize(Policy = Policies.Customer)]
+@using System.Globalization
+
+@* La conferma prima di aggiungere un articolo all'ordine. I dati della riga arrivano
+   dall'indirizzo, prezzo compreso, e il modulo «Conferma» li rimanda tutti al server: se il
+   server se ne fida, il prezzo lo decide chi scrive l'indirizzo (caso 8.2 del Laboratorio). *@
+
+<PageTitle>Conferma · Fortino</PageTitle>
+<MudBreadcrumbs Items="_breadcrumbs" Class="px-0 pt-0" />
+<MudText Typo="Typo.h5" Class="mb-4">Aggiungi all'ordine</MudText>
+
+<MudPaper Outlined="true" Class="pa-4" Style="max-width:720px">
+    <MudSimpleTable Dense="true" Elevation="0">
+        <tbody>
+            <tr><td style="width:180px"><b>Articolo</b></td><td>@Description</td></tr>
+            <tr><td><b>Quantità</b></td><td>@Quantity</td></tr>
+            <tr><td><b>Prezzo unitario</b></td><td>@Labels.Money(_price)</td></tr>
+            <tr><td><b>Importo</b></td><td><b>@Labels.Money(_price * Quantity)</b></td></tr>
+        </tbody>
+    </MudSimpleTable>
+
+    <form method="post" action="@($"/portal/api/orders/{OrderId}/lines")" class="d-flex mt-4" style="gap:8px">
+        <AntiforgeryToken />
+        <input type="hidden" name="ProductId" value="@ProductId" />
+        <input type="hidden" name="Description" value="@Description" />
+        <input type="hidden" name="Quantity" value="@Quantity" />
+        <input type="hidden" name="UnitPrice" value="@_price.ToString(CultureInfo.InvariantCulture)" />
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">Conferma</MudButton>
+        <MudButton Href="/portal/catalogo" Variant="Variant.Text">Torna al catalogo</MudButton>
+    </form>
+</MudPaper>
+
+@code {
+    [SupplyParameterFromQuery(Name = "ordine")] public int OrderId { get; set; }
+    [SupplyParameterFromQuery(Name = "prodotto")] public int ProductId { get; set; }
+    [SupplyParameterFromQuery(Name = "descrizione")] public string? Description { get; set; }
+    [SupplyParameterFromQuery(Name = "quantita")] public int Quantity { get; set; }
+    [SupplyParameterFromQuery(Name = "prezzo")] public string? Price { get; set; }
+
+    private decimal _price;
+    private List<BreadcrumbItem> _breadcrumbs = [];
+
+    protected override void OnParametersSet()
+    {
+        _breadcrumbs = [new("Catalogo", "/portal/catalogo"), new("Conferma", null, disabled: true)];
+        // Il prezzo si legge con il punto decimale (64.00), come lo scrive il catalogo.
+        decimal.TryParse(Price, NumberStyles.Number, CultureInfo.InvariantCulture, out _price);
+    }
+}

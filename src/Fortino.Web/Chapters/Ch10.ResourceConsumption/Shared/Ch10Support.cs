@@ -6,8 +6,35 @@ namespace Fortino.Web.Chapters.Ch10;
 // contorno degli indirizzi (leggere le dimensioni dichiarate, il corpo della richiesta, gli elementi).
 public static class Ch10Header
 {
-    // Il corpo della richiesta di validazione del testo (caso 10.2).
-    public sealed record ValidateRequest(string? Text);
+    // Torna alla pagina con la misura dell'effetto nell'indirizzo (memoria, tempo, dimensione):
+    // la pagina la mostra al lettore.
+    public static IResult BackTo(string page, Dictionary<string, string> values)
+    {
+        string query = string.Join("&", values.Select(v => $"{v.Key}={Uri.EscapeDataString(v.Value)}"));
+        return Results.LocalRedirect($"{page}?{query}");
+    }
+
+    // Il file del caso 10.1: solo l'intestazione di un PNG (24 byte: firma più blocco IHDR) che
+    // dichiara width × height pixel. Non è un'immagine vera: è tutto quello che serve all'attacco.
+    public static byte[] PngHeader(int width, int height)
+    {
+        byte[] bytes = new byte[24];
+        byte[] signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        signature.CopyTo(bytes, 0);
+        byte[] ihdr = [0x00, 0x00, 0x00, 0x0D, (byte)'I', (byte)'H', (byte)'D', (byte)'R'];
+        ihdr.CopyTo(bytes, 8);
+        WriteBigEndian(bytes, 16, width);
+        WriteBigEndian(bytes, 20, height);
+        return bytes;
+    }
+
+    private static void WriteBigEndian(byte[] bytes, int start, int value)
+    {
+        bytes[start] = (byte)(value >> 24);
+        bytes[start + 1] = (byte)(value >> 16);
+        bytes[start + 2] = (byte)(value >> 8);
+        bytes[start + 3] = (byte)value;
+    }
 
     // Legge larghezza e altezza DICHIARATE nell'intestazione PNG (24 byte: firma + blocco IHDR),
     // senza caricare l'immagine. Se il file è più corto, restituisce (0, 0).

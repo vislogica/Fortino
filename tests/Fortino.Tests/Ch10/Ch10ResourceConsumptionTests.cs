@@ -1,30 +1,33 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using Fortino.Web.Chapters.Ch10;
 using Fortino.Web.Chapters.Ch10.Scenarios;
 using Fortino.Web.Chapters.Ch10.Secure;
 using Fortino.Web.Data;
 using Fortino.Web.Lab;
+using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Primitives;
 
 namespace Fortino.Tests.Ch10;
 
 // Capitolo 10 — Consumo di risorse e blocco del servizio.
-// Ogni prova rifà quello che fa il lettore dalla console: inizia la prova, entra come operatore e
-// chiama l'indirizzo vero. Non si misura il tempo (dipende dalla macchina): si guarda la risposta.
+// Ogni prova rifà quello che fa il lettore nelle pagine: inizia la prova, entra come operatore e usa
+// il modulo vero. Il server torna alla pagina con la misura dell'effetto nell'indirizzo: è quella che
+// si guarda. Non si misura il tempo (dipende dalla macchina).
 public class Ch10ResourceConsumptionTests
 {
-    // 10.1 — l'immagine di 24 byte che dichiara 5000×5000.
+    // 10.1 — l'immagine di 24 byte che dichiara 5000×5000, presa dall'indirizzo del file di prova.
     [Fact]
     public async Task Vulnerable_image_check_allocates_memory_from_a_tiny_file()
     {
         using var factory = new FortinoFactory();
         var mario = await StartTrialAsMarioAsync(factory, "huge-image", CodeVariant.Vulnerable);
 
-        var json = await UploadHeaderAsync(mario, 5000, 5000);
+        var result = await UploadTestImageAsync(mario);
 
-        Assert.Equal(24, json!["fileBytes"]!.GetValue<int>());
-        Assert.True(json["allocatedMB"]!.GetValue<long>() >= 50, json.ToJsonString());
+        Assert.Equal("24", result["byte"]);
+        Assert.True(long.Parse(result["mb"]!) >= 50, result.ToString());
     }
 
     [Fact]
@@ -33,10 +36,10 @@ public class Ch10ResourceConsumptionTests
         using var factory = new FortinoFactory();
         var mario = await StartTrialAsMarioAsync(factory, "huge-image", CodeVariant.Secure);
 
-        var json = await UploadHeaderAsync(mario, 5000, 5000);
+        var result = await UploadTestImageAsync(mario);
 
-        Assert.False(json!["accepted"]!.GetValue<bool>());
-        Assert.Equal("TooManyPixels", json["result"]!.GetValue<string>());
+        Assert.Equal("TooManyPixels", result["controllo"]);
+        Assert.False(result.ContainsKey("mb"));
     }
 
     // 10.2 — il testo d'attacco: la versione vulnerabile lo confronta (lentamente), la corretta lo
@@ -47,10 +50,9 @@ public class Ch10ResourceConsumptionTests
         using var factory = new FortinoFactory();
         var mario = await StartTrialAsMarioAsync(factory, "slow-regex", CodeVariant.Vulnerable);
 
-        var json = await mario.PostAsJsonAsync("/notes/validate", new { text = SlowRegexCase.Payload });
-        var body = await json.Content.ReadFromJsonAsync<JsonObject>();
+        var result = await ValidateAsync(mario, SlowRegexCase.Payload);
 
-        Assert.False(body!["matches"]!.GetValue<bool>());
+        Assert.Equal("NotValid", result["esito"]);
     }
 
     [Fact]
@@ -59,24 +61,21 @@ public class Ch10ResourceConsumptionTests
         using var factory = new FortinoFactory();
         var mario = await StartTrialAsMarioAsync(factory, "slow-regex", CodeVariant.Secure);
 
-        var json = await mario.PostAsJsonAsync("/notes/validate", new { text = SlowRegexCase.Payload });
-        var body = await json.Content.ReadFromJsonAsync<JsonObject>();
+        var result = await ValidateAsync(mario, SlowRegexCase.Payload);
 
-        Assert.Equal("TimedOut", body!["outcome"]!.GetValue<string>());
+        Assert.Equal("TimedOut", result["esito"]);
     }
 
-    // 10.3 — l'esportazione oltre il limite.
+    // 10.3 — l'esportazione oltre il limite, chiesta dalla barra degli indirizzi.
     [Fact]
     public async Task Vulnerable_export_builds_everything_in_memory()
     {
         using var factory = new FortinoFactory();
         var mario = await StartTrialAsMarioAsync(factory, "unbounded-export", CodeVariant.Vulnerable);
 
-        var response = await mario.GetAsync($"/orders/export?count={StreamingZipExport.MaxEntries + 1}");
-        var body = await response.Content.ReadFromJsonAsync<JsonObject>();
+        var result = await ExportAsync(mario, StreamingZipExport.MaxEntries + 1);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(body!["sizeKB"]!.GetValue<long>() > 0);
+        Assert.True(long.Parse(result["kb"]!) > 0);
     }
 
     [Fact]
@@ -85,9 +84,9 @@ public class Ch10ResourceConsumptionTests
         using var factory = new FortinoFactory();
         var mario = await StartTrialAsMarioAsync(factory, "unbounded-export", CodeVariant.Secure);
 
-        var response = await mario.GetAsync($"/orders/export?count={StreamingZipExport.MaxEntries + 1}");
+        var result = await ExportAsync(mario, StreamingZipExport.MaxEntries + 1);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("troppo grande", result["errore"].ToString());
     }
 
     // La validazione corretta, a parte gli indirizzi, usa la difesa giusta in ogni caso.
@@ -103,29 +102,63 @@ public class Ch10ResourceConsumptionTests
         Assert.Equal(SafeTextValidator.Outcome.NotValid, SafeTextValidator.Check("abc"));
     }
 
-    private static async Task<JsonObject?> UploadHeaderAsync(HttpClient client, int width, int height)
+    // Il file di prova scaricato dal Laboratorio è un'intestazione PNG di 24 byte che dichiara 5000×5000.
+    [Fact]
+    public void Test_image_declares_a_huge_size_in_24_bytes()
     {
-        byte[] header = new byte[24];
-        byte[] signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-        signature.CopyTo(header, 0);
-        WriteBigEndian(header, 16, width);
-        WriteBigEndian(header, 20, height);
+        byte[] file = Ch10Header.PngHeader(5000, 5000);
 
-        using var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(header);
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-        content.Add(fileContent, "file", "enorme.png");
-        using var response = await client.PostAsync("/documents/check-image", content);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        return await response.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal(24, file.Length);
+        Assert.Equal(ImageSizeGuard.Result.TooManyPixels, ImageSizeGuard.Check(new MemoryStream(file), file.Length));
     }
 
-    private static void WriteBigEndian(byte[] bytes, int offset, int value)
+    // Scarica il file di prova e lo carica con «Controlla un'immagine» della pagina Documenti.
+    private static async Task<Dictionary<string, StringValues>> UploadTestImageAsync(HttpClient client)
     {
-        bytes[offset] = (byte)(value >> 24);
-        bytes[offset + 1] = (byte)(value >> 16);
-        bytes[offset + 2] = (byte)(value >> 8);
-        bytes[offset + 3] = (byte)value;
+        byte[] image = await client.GetByteArrayAsync("/lab/file/immagine-enorme.png");
+
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(await PageTokenAsync(client, "/documents")), "__RequestVerificationToken");
+        var fileContent = new ByteArrayContent(image);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        content.Add(fileContent, "file", "immagine-enorme.png");
+        using var response = await client.PostAsync("/documents/check-image", content);
+        return BackToPage(response, "/documents");
+    }
+
+    // «Controlla un testo» della pagina Documenti.
+    private static async Task<Dictionary<string, StringValues>> ValidateAsync(HttpClient client, string text)
+    {
+        using var response = await client.PostAsync("/notes/validate", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = await PageTokenAsync(client, "/documents"),
+            ["text"] = text,
+        }));
+        return BackToPage(response, "/documents");
+    }
+
+    // L'esportazione con il numero scritto nella barra degli indirizzi.
+    private static async Task<Dictionary<string, StringValues>> ExportAsync(HttpClient client, int count)
+    {
+        using var response = await client.GetAsync($"/orders/export?count={count}");
+        return BackToPage(response, "/orders");
+    }
+
+    // Il server torna alla pagina con la misura nell'indirizzo: la si legge da lì.
+    private static Dictionary<string, StringValues> BackToPage(HttpResponseMessage response, string page)
+    {
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        string location = response.Headers.Location?.OriginalString ?? "";
+        Assert.StartsWith(page + "?", location);
+        return QueryHelpers.ParseQuery(location[location.IndexOf('?')..]);
+    }
+
+    private static async Task<string> PageTokenAsync(HttpClient client, string page)
+    {
+        var html = await client.GetStringAsync(page);
+        var token = Regex.Match(html, """name="__RequestVerificationToken"[^>]*?value="(?<t>[^"]+)"|value="(?<t>[^"]+)"[^>]*?name="__RequestVerificationToken" """);
+        Assert.True(token.Success, $"Nessun modulo con token nella pagina {page}.");
+        return WebUtility.HtmlDecode(token.Groups["t"].Value);
     }
 
     private static async Task<HttpClient> StartTrialAsMarioAsync(FortinoFactory factory, string caseSlug, CodeVariant variant)

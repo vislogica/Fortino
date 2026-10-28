@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Dapper;
 using Fortino.Web.Data;
 using Fortino.Web.Lab;
@@ -10,7 +11,8 @@ namespace Fortino.Tests.Ch08;
 
 // Capitolo 8 — Mass assignment e overposting.
 // Ogni prova rifà quello che fa il lettore dal browser: inizia la prova (così il Laboratorio sa quale
-// versione del codice usare), entra come Ottica Lumen e chiama l'API come farebbe dalla console.
+// versione del codice usare), entra come Ottica Lumen e fa quello che fa lui: per il profilo (8.1) chiama
+// l'API come dalla console, per la riga d'ordine (8.2) apre la pagina di conferma e invia il suo modulo.
 public class Ch08MassAssignmentTests
 {
     // 8.1: nella versione vulnerabile il campo "role" passa e il cliente diventa amministratore.
@@ -44,12 +46,13 @@ public class Ch08MassAssignmentTests
         Assert.Equal(["displayName", "email"], await ReadProfileFieldsAsync(CodeVariant.Secure));
     }
 
-    // 8.2: nella versione vulnerabile il prezzo scritto dal cliente finisce nell'ordine.
+    // 8.2: nella versione vulnerabile il prezzo scritto dal cliente finisce nell'ordine; nella corretta
+    // la riga entra lo stesso, ma al prezzo di listino.
     [Fact]
-    public async Task Client_price_is_rejected_only_in_the_secure_version()
+    public async Task Client_price_is_ignored_only_in_the_secure_version()
     {
-        Assert.Equal((HttpStatusCode.NoContent, 1L), await SendClientPriceAsync(CodeVariant.Vulnerable));
-        Assert.Equal((HttpStatusCode.BadRequest, 0L), await SendClientPriceAsync(CodeVariant.Secure));
+        Assert.Equal(0.01m, await SendClientPriceAsync(CodeVariant.Vulnerable));
+        Assert.Equal(64.00m, await SendClientPriceAsync(CodeVariant.Secure));
     }
 
     // Fuori da una prova risponde la versione corretta.
@@ -88,19 +91,26 @@ public class Ch08MassAssignmentTests
         return (response.StatusCode, role);
     }
 
-    // 8.2 — ordine 5 (ORD-2026-0105) di Ottica Lumen: 50 toner a 1 centesimo. Ritorna la risposta e
-    // quante righe dell'ordine hanno un prezzo diverso dal listino.
-    private static async Task<(HttpStatusCode, long)> SendClientPriceAsync(CodeVariant variant)
+    // 8.2 — ordine 5 (ORD-2026-0105) di Ottica Lumen: la pagina di conferma aperta con prezzo=0.01 nell'indirizzo,
+    // poi «Conferma». Ritorna il prezzo con cui la riga dei 50 toner è finita nell'ordine.
+    private static async Task<decimal> SendClientPriceAsync(CodeVariant variant)
     {
         using var factory = new FortinoFactory();
         var lumen = await StartTrialAsLumenAsync(factory, "client-price", variant);
 
-        var body = new { productId = 2, description = "Toner nero per stampante laser", quantity = 50, unitPrice = 0.01m };
-        using var response = await lumen.PostAsJsonAsync("/portal/api/orders/5/lines", body);
+        var page = await lumen.GetStringAsync("/portal/carrello?ordine=5&prodotto=2&descrizione=Toner+nero+per+stampante+laser&quantita=50&prezzo=0.01");
+        var field = (string name) => WebUtility.HtmlDecode(Regex.Match(page, $"""name="{name}"[^>]*?value="(?<v>[^"]*)"|value="(?<v>[^"]*)"[^>]*?name="{name}" """).Groups["v"].Value);
+        using var response = await lumen.PostAsync("/portal/api/orders/5/lines", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["__RequestVerificationToken"] = field("__RequestVerificationToken"),
+            ["ProductId"] = field("ProductId"),
+            ["Description"] = field("Description"),
+            ["Quantity"] = field("Quantity"),
+            ["UnitPrice"] = field("UnitPrice"),
+        }));
+        Assert.Contains("esito=salvato", response.Headers.Location?.OriginalString);
 
-        long offList = await QueryAsync<long>(factory,
-            "SELECT COUNT(*) FROM OrderLine l JOIN Product p ON p.Id = l.ProductId WHERE l.OrderId = 5 AND l.UnitPrice <> p.UnitPrice;");
-        return (response.StatusCode, offList);
+        return await QueryAsync<decimal>(factory, "SELECT UnitPrice FROM OrderLine WHERE OrderId = 5 AND Quantity = 50;");
     }
 
     private static async Task<T> QueryAsync<T>(FortinoFactory factory, string sql)

@@ -33,8 +33,19 @@ else
                 <MudPaper Outlined="true" Class="pa-4">
                     <MudText Typo="Typo.h6">@_selected.Subject</MudText>
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">A: @_selected.Recipient</MudText>
-                    @* Il corpo è mostrato come testo, non come HTML: così un'email non può eseguire script in questa pagina. *@
-                    <pre class="fortino-mail-body">@_selected.HtmlBody</pre>
+                    @* Il corpo è mostrato come testo, non come HTML: così un'email non può eseguire script in questa pagina.
+                       Solo gli indirizzi https://... diventano collegamenti, come in un vero programma di posta. *@
+                    <pre class="fortino-mail-body">@foreach (var (text, isLink) in SplitLinks(_selected.HtmlBody))
+                    {
+                        if (isLink)
+                        {
+                            <a href="@text" target="_blank" rel="noopener">@text</a>
+                        }
+                        else
+                        {
+                            @text
+                        }
+                    }</pre>
                 </MudPaper>
             }
         </MudItem>
@@ -44,6 +55,19 @@ else
 @code {
     private IReadOnlyList<MailMessage> _messages = [];
     private MailMessage? _selected;
+
+    // Divide il testo in pezzi normali e indirizzi https://, che la pagina mostra come collegamenti.
+    private static IEnumerable<(string Text, bool IsLink)> SplitLinks(string body)
+    {
+        int last = 0;
+        foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(body, @"https://[^\s<>""]+"))
+        {
+            if (m.Index > last) yield return (body[last..m.Index], false);
+            yield return (m.Value, true);
+            last = m.Index + m.Length;
+        }
+        if (last < body.Length) yield return (body[last..], false);
+    }
 
     protected override async Task OnInitializedAsync()
     {

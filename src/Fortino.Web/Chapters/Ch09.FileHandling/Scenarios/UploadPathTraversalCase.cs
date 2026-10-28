@@ -4,23 +4,23 @@ namespace Fortino.Web.Chapters.Ch09.Scenarios;
 
 // Caso 9.1: un file caricato con un nome che risale di cartella finisce fuori dalla cartella dei
 // documenti. La versione corretta salva con un nome deciso dal server e controlla il percorso.
-// Si prova dalla console del browser: il modulo di caricamento normale toglie il percorso dal nome,
-// la console no.
+// Si prova dal modulo «Allega un documento»: il nome del file lo sceglie il sistema operativo e non
+// può contenere «/», ma il campo «Nome del documento» accetta qualunque testo.
 public sealed class UploadPathTraversalCase : Ch09Case
 {
     public override string Slug => "upload-path-traversal";
     public override string Title => "Path traversal in caricamento";
     public override string Summary =>
-        "Dal dettaglio di un ordine carichi un file dalla console con un nome che risale di cartella: nella versione vulnerabile finisce fuori dalla cartella dei documenti.";
+        "Dal dettaglio di un ordine alleghi un file e nel campo «Nome del documento» scrivi un nome che risale di cartella: nella versione vulnerabile il file finisce fuori dalla cartella dei documenti.";
     public override string BookReference => "capitolo 9, caso 9.1";
     public override CodeLocation VulnerableCode => new("Ch09.FileHandling/Vulnerable/UnsafeDocumentIO.cs", "salva-file-vulnerabile");
     public override CodeLocation SecureCode => new("Ch09.FileHandling/Secure/DocumentApi.cs", "salva-file-corretto");
 
     private static readonly IReadOnlyList<string> Steps =
     [
-        "Dopo l'accesso sei nel dettaglio dell'ordine ORD-2026-0105 (`/orders/5`): in «Documenti allegati» c'è «fattura-esempio.pdf».",
-        "Prima un caricamento normale, dalla console (F12 › Console), come farebbe il modulo della pagina: `const f = new FormData(); f.append('file', new Blob(['ciao'], {type:'application/pdf'}), 'nota.pdf'); fetch('/orders/5/documents', {method:'POST', body:f}).then(r=>r.json()).then(console.log)`. Guarda il campo `path` della risposta: dove è finito il file.",
-        "Ora un nome che risale di cartella: stessa riga, ma con nome `../fuori-dai-documenti.pdf`. `const f = new FormData(); f.append('file', new Blob(['sono uscito'], {type:'application/pdf'}), '../fuori-dai-documenti.pdf'); fetch('/orders/5/documents', {method:'POST', body:f}).then(r=>r.json()).then(console.log)`. Guarda di nuovo il campo `path`.",
+        "Dopo l'accesso sei nel dettaglio dell'ordine ORD-2026-0105 (`/orders/5`). In fondo alla pagina ci sono «Documenti allegati» e il modulo per allegare un documento.",
+        "Prima un caricamento normale: scegli un PDF o un'immagine qualsiasi dal tuo computer, lascia vuoto «Nome del documento» e premi «Allega». Il messaggio verde dice dove il server ha salvato il file.",
+        "Ora un nome che risale di cartella: scegli di nuovo un file, nel campo «Nome del documento» scrivi `../fuori-dai-documenti.pdf` e premi «Allega». Guarda di nuovo dove è finito il file.",
     ];
 
     public override ManualTrial Trial => new(
@@ -35,7 +35,7 @@ public sealed class UploadPathTraversalCase : Ch09Case
                 Line: "sulla riga `string path = Path.Combine(store.Root, fileName);`, nella regione `salva-file-vulnerabile`",
                 Watch:
                 [
-                    "`fileName` vale `../fuori-dai-documenti.pdf`: arriva dal caricamento, con `..` dentro.",
+                    "`fileName` vale `../fuori-dai-documenti.pdf`: è quello che hai scritto nel campo «Nome del documento», con `..` dentro.",
                     "`path` punta un passo sopra `store.Root`: il percorso è già uscito dalla cartella dei documenti.",
                 ])),
         Secure: new TrialInstructions(

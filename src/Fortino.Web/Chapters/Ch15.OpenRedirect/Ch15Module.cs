@@ -3,8 +3,10 @@ using Fortino.Web.Lab;
 namespace Fortino.Web.Chapters.Ch15;
 
 // Capitolo 15 — Open redirect e Host header.
-//   /lab/ch15/vulnerable/...  versione vulnerabile
-//   /lab/ch15/secure/...      versione corretta
+//   caso 15.1  il login vero di Fortino (/auth/login): dopo l'accesso, dove si torna lo decide
+//              il codice del capitolo, scelto dal cookie della prova (vedi AuthEndpoints);
+//   caso 15.2  «Password dimenticata?» (POST /forgot-password), registrato una volta per versione.
+// Le pagine del truffatore (email trappola, pannello, pagine finte) stanno in Attacker/.
 public sealed class Ch15Module : ILabChapterModule
 {
     public int Chapter => 15;
@@ -13,14 +15,23 @@ public sealed class Ch15Module : ILabChapterModule
     {
         services.AddSingleton<ILabCase, Scenarios.OpenRedirectCase>();
         services.AddSingleton<ILabCase, Scenarios.HostHeaderCase>();
+        services.AddHttpClient(Attacker.AttackerPages.HttpClientName)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                // Il certificato di sviluppo di localhost: il truffatore chiama Fortino senza verificarlo.
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+                UseCookies = false,
+                AllowAutoRedirect = false,
+            });
     }
 
     public void MapEndpoints(IEndpointRouteBuilder app)
     {
-        var vulnerable = app.MapGroup(LabContext.BasePath(Chapter, CodeVariant.Vulnerable)).RequireAuthorization();
-        Vulnerable.RedirectApi.Map(vulnerable, LabContext.BasePath(Chapter, CodeVariant.Vulnerable) + "/login");
+        Vulnerable.RedirectApi.MapForgotPassword(
+            app.MapTrialVariant(Chapter, "host-header", CodeVariant.Vulnerable).MapGroup("").AllowAnonymous());
+        Secure.RedirectApi.MapForgotPassword(
+            app.MapTrialVariant(Chapter, "host-header", CodeVariant.Secure).MapGroup("").AllowAnonymous());
 
-        var secure = app.MapGroup(LabContext.BasePath(Chapter, CodeVariant.Secure)).RequireAuthorization();
-        Secure.RedirectApi.Map(secure, LabContext.BasePath(Chapter, CodeVariant.Secure) + "/login");
+        Attacker.AttackerPages.Map(app);
     }
 }

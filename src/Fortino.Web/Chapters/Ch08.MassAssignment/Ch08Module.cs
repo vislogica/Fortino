@@ -11,7 +11,8 @@ namespace Fortino.Web.Chapters.Ch08;
 //   /account/profile                     → Vulnerable.ProfileApi   o Secure.ProfileApi
 //   /portal/api/orders/{orderId}/lines   → Vulnerable.OrderLineApi o Secure.OrderLineApi
 // Risponde la versione scelta dal cookie della prova; fuori da una prova, la corretta.
-// Il lettore chiama questi indirizzi dalla console del browser.
+// Il profilo (8.1) il lettore lo rimanda dalla console del browser; la riga d'ordine (8.2) arriva
+// dal modulo «Conferma» della pagina /portal/carrello.
 public sealed class Ch08Module : ILabChapterModule
 {
     public int Chapter => 8;

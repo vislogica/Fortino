@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Fortino.Web.Chapters.Ch09;
 using Fortino.Web.Data;
 using Fortino.Web.Lab;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Fortino.Tests.Ch09;
@@ -116,7 +116,7 @@ public class Ch09FileHandlingTests
 
         using var response = await UploadAsync(mario, "programma.exe", "application/octet-stream", [1, 2, 3]);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("errore=", response.Headers.Location?.OriginalString);
     }
 
     // L'ultima difesa (PathFor) tiene ogni nome dentro la cartella dei documenti.
@@ -138,21 +138,35 @@ public class Ch09FileHandlingTests
     private static string DownloadUrl(string name) =>
         $"/orders/{Ch09Module.TrialOrderId}/documents/content?name={Uri.EscapeDataString(name)}";
 
-    private static async Task<string> UploadAndReadPathAsync(HttpClient client, string fileName)
+    // Il modulo «Allega un documento»: un PDF qualsiasi, con il nome scritto nel campo «Nome del documento».
+    // Ritorna dove il server dice di averlo salvato (la pagina dell'ordine lo mostra).
+    private static async Task<string> UploadAndReadPathAsync(HttpClient client, string documentName)
     {
-        using var response = await UploadAsync(client, fileName, "application/pdf", [0x25, 0x50, 0x44, 0x46]);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonObject>();
-        return json!["path"]!.GetValue<string>();
+        using var response = await UploadAsync(client, "documento.pdf", "application/pdf", [0x25, 0x50, 0x44, 0x46], documentName);
+        var location = response.Headers.Location?.OriginalString ?? "";
+        var uploaded = QueryHelpers.ParseQuery(new Uri(new Uri("https://localhost"), location).Query)["caricato"];
+        Assert.False(string.IsNullOrEmpty(uploaded), location);
+        return uploaded.ToString();
     }
 
-    private static async Task<HttpResponseMessage> UploadAsync(HttpClient client, string fileName, string contentType, byte[] bytes)
+    private static async Task<HttpResponseMessage> UploadAsync(HttpClient client, string fileName, string contentType, byte[] bytes,
+        string? documentName = null)
     {
+        // Il token antiforgery del modulo, preso dalla pagina dell'ordine come farebbe il browser.
+        var page = await client.GetStringAsync($"/orders/{Ch09Module.TrialOrderId}");
+        var token = Regex.Match(page, """name="__RequestVerificationToken"[^>]*?value="(?<t>[^"]+)"|value="(?<t>[^"]+)"[^>]*?name="__RequestVerificationToken" """);
+        Assert.True(token.Success, "Nessun modulo con token nella pagina dell'ordine.");
+
         using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(WebUtility.HtmlDecode(token.Groups["t"].Value)), "__RequestVerificationToken");
         var fileContent = new ByteArrayContent(bytes);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         content.Add(fileContent, "file", fileName);
-        return await client.PostAsync($"/orders/{Ch09Module.TrialOrderId}/documents", content);
+        if (documentName is not null)
+            content.Add(new StringContent(documentName), "name");
+        var response = await client.PostAsync($"/orders/{Ch09Module.TrialOrderId}/documents", content);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        return response;
     }
 
     private static async Task<HttpClient> StartTrialAsMarioAsync(FortinoFactory factory, string caseSlug, CodeVariant variant)

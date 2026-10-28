@@ -1,0 +1,17 @@
+@* L'esito di un modulo appena inviato. Le azioni dei moduli tornano alla pagina con
+   "?esito=salvato" oppure con "?errore=..." e il messaggio da mostrare. *@
+
+@if (!string.IsNullOrEmpty(Error))
+{
+    <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@Error</MudAlert>
+}
+else if (Outcome == "salvato")
+{
+    <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">@SuccessText</MudAlert>
+}
+
+@code {
+    [Parameter] public string? Outcome { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public string SuccessText { get; set; } = "Modifica salvata.";
+}

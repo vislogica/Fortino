@@ -1,23 +1,29 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace Fortino.Web.Chapters.Ch12.Vulnerable;
 
-// VERSIONE VULNERABILE. Gli indirizzi veri usati dai due casi del capitolo 12. La riga che conta
-// sta nelle classi WeakPasswordHashing e WeakToken; qui c'è solo l'indirizzo che le usa.
+// VERSIONE VULNERABILE. Le azioni della pagina /users usate dai due casi del capitolo 12. La riga
+// che conta sta nelle classi WeakPasswordHashing e WeakToken; qui c'è solo l'indirizzo che le usa.
 public static class PasswordApi
 {
-    // Caso 12.1: hash di una password. POST /password/hash
-    public static void MapHash(RouteGroupBuilder group)
+    // Caso 12.1: «Aggiungi un utente». La password si salva come hash MD5.
+    public static void MapCreateUser(RouteGroupBuilder group)
     {
-        group.MapPost("/password/hash", (HashRequest request) =>
-            Results.Ok(new { hash = WeakPasswordHashing.Hash(request.Password) }));
+        group.MapPost("/users/nuovo", async ([FromForm] NewUserForm form, Ch12Users users) =>
+        {
+            string hash = WeakPasswordHashing.Hash(form.Password ?? "");
+            return await users.CreateAsync(form, hash);
+        });
     }
 
-    // Caso 12.2: generazione di un codice di reset. POST /password/reset-token
-    public static void MapResetToken(RouteGroupBuilder group)
+    // Caso 12.2: «Invia il codice di reset» agli utenti selezionati. I codici vengono da System.Random,
+    // con l'ora della richiesta come seme.
+    public static void MapSendResetCodes(RouteGroupBuilder group)
     {
-        group.MapPost("/password/reset-token", () =>
+        group.MapPost("/users/reset-password", async ([FromForm] ResetForm form, Ch12Users users) =>
         {
             long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            return Results.Ok(new { token = WeakToken.Create(now) });
+            return await users.SendResetCodesAsync(form.UserIds, _ => WeakToken.Create(now));
         });
     }
 }

@@ -1,0 +1,28 @@
+@page "/portal/assistente"
+@attribute [Authorize(Policy = Policies.Customer)]
+
+@* L'assistente del portale clienti, fatto come una chat. Ogni domanda va al server con
+   wwwroot/lab/ch17.js: è qui che si provano i casi 17.1 (prompt injection) e 17.2 (accesso
+   eccessivo) del Laboratorio (capitolo 17). *@
+
+<PageTitle>Assistente · Fortino</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-1">Assistente</MudText>
+<MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">
+    Fai una domanda sui tuoi ordini. Nel Laboratorio l'assistente è simulato: risponde sempre allo stesso modo
+    alle stesse parole, così le prove si ripetono.
+</MudText>
+
+<MudPaper Outlined="true" Class="pa-4" Style="max-width:820px">
+    <div id="chat" class="fortino-chat">
+        <div class="fortino-chat-bubble is-assistant">Ciao! Posso aiutarti con i tuoi ordini e le tue fatture.</div>
+    </div>
+    <div class="d-flex mt-3" style="gap:8px">
+        <input class="fortino-input" id="question" placeholder="Scrivi una domanda e premi Invio"
+               onkeydown="if (event.key === 'Enter') fortinoCh17.ask()" />
+        @* Un pulsante HTML con l'aspetto di MudBlazor: MudButton non lascia passare l'attributo onclick. *@
+        <button type="button" class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-filled-size-medium"
+                onclick="fortinoCh17.ask()">
+            <span class="mud-button-label">Invia</span>
+        </button>
+    </div>
+</MudPaper>

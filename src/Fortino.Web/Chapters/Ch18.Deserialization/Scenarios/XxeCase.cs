@@ -2,44 +2,56 @@ using Fortino.Web.Lab;
 
 namespace Fortino.Web.Chapters.Ch18.Scenarios;
 
-// Caso 18.1: un XML con una definizione di tipo documento (DTD) ed entità viene elaborato dal
-// lettore permissivo. È il meccanismo alla base dell'XXE: una volta che la DTD viene elaborata,
-// un'entità può puntare a un file o a un indirizzo interni (il testo del capitolo lo spiega).
+// Caso 18.1: un file XML porta con sé una DTD con un'entità esterna che punta a un file del server.
+// La versione vulnerabile la risolve e il contenuto del file finisce nel nome del cliente importato.
 public sealed class XxeCase : Ch18Case
 {
     public override string Slug => "xxe";
     public override IReadOnlyList<string> LabUsers => ["anna"];
     public override string Title => "XML che porta una sua definizione";
     public override string Summary =>
-        "Un XML con una DTD ed entità viene elaborato dalla versione vulnerabile: il valore arriva dalla DTD, non dai dati. La versione corretta rifiuta la DTD.";
+        "Anna importa un cliente da un file XML che, al posto del nome, contiene un riferimento a un file del server: la versione vulnerabile lo apre e il contenuto riservato finisce nell'elenco dei clienti.";
     public override string BookReference => "capitolo 18, caso 18.1";
     public override CodeLocation VulnerableCode => new("Ch18.Deserialization/Vulnerable/UnsafeXmlImport.cs", "xml-vulnerabile");
     public override CodeLocation SecureCode => new("Ch18.Deserialization/Secure/SafeXmlImport.cs", "xml-corretto");
 
-    private const string Marker = "VALORE-DALLA-DTD";
+    private static readonly IReadOnlyList<string> Steps =
+    [
+        "Dopo l'accesso sei nel gestionale come Anna Rossi, nella pagina «Clienti». In fondo c'è il riquadro «Importa un cliente da XML».",
+        "Scarica il file di prova: nella barra degli indirizzi, dopo il nome del sito, scrivi `/lab/file/cliente.xml` e premi Invio. Il browser salva `cliente.xml`.",
+        "Aprilo con il Blocco note. Il nome del cliente non c'è: al suo posto c'è `&segreto;`, un'entità definita in cima al file che punta a un file del server (`chiavi-di-servizio-finte.txt`, un file riservato finto del Laboratorio).",
+        "Torna a «Clienti», scegli `cliente.xml` nel riquadro dell'importazione e premi «Importa».",
+    ];
 
-    // Un XML che definisce un'entità nella DTD e la usa nel nome.
-    private static readonly string Payload =
-        $"<?xml version=\"1.0\"?><!DOCTYPE cliente [ <!ENTITY iniettata \"{Marker}\"> ]>" +
-        "<cliente><nome>&iniettata;</nome></cliente>";
+    public override ManualTrial Trial => new(
+        Username: "anna",
+        StartPath: "/customers",
+        Vulnerable: new TrialInstructions(
+            Steps,
+            Expected: "Compare «Cliente importato» e nell'elenco c'è un cliente che ha come ragione sociale il contenuto del file riservato del server: «SEGRETO-FINTO... ServiceApiKey=... DbPassword=...».",
+            Proves: "La lettura permissiva elabora la DTD e apre il file indicato dall'XML: chi prepara il file decide quale file del server leggere.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch18.Deserialization/Vulnerable/UnsafeXmlImport.cs",
+                Line: "sulla riga `string name = nameNode.InnerText;`, nella regione `xml-vulnerabile`",
+                Watch:
+                [
+                    "`nameNode.InnerText` contiene il testo del file del server: l'entità `&segreto;` è stata sostituita con il contenuto del file.",
+                ])),
+        Secure: new TrialInstructions(
+            Steps,
+            Expected: "Compare in rosso «Il file contiene una DTD: per sicurezza non viene letto.» e nessun cliente viene aggiunto.",
+            Proves: "Con la DTD vietata e nessun resolver, un XML non può far aprire al server file o indirizzi.",
+            Breakpoint: new BreakpointHint(
+                File: "Chapters/Ch18.Deserialization/Secure/SafeXmlImport.cs",
+                Line: "sulla riga `document.Load(reader);`, nella regione `xml-corretto`",
+                Watch:
+                [
+                    "Premendo F10 la riga lancia una `XmlException`: la DTD è vietata e la lettura si ferma prima di aprire qualunque file.",
+                ])));
 
-    public override async Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
+    public override Task RunAsync(CodeVariant variant, AttackRun run, LabContext context, CancellationToken ct)
     {
-        await context.ResetDataAsync(run, ct);
-
-        var client = await context.Clients.CreateAsync(LabUsers[0], ct);
-        run.Log("Viene inviato un XML che porta con sé una DTD con un'entità: il nome del cliente non è scritto " +
-                "direttamente, ma viene dall'entità definita nella DTD.");
-
-        using var content = new StringContent(Payload, System.Text.Encoding.UTF8, "application/xml");
-        using var response = await client.PostAsync($"{Api(variant)}/import/xml", content, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
-        run.Log($"Risposta del server: {(int)response.StatusCode}. Corpo: {body}.");
-
-        if (response.IsSuccessStatusCode && body.Contains(Marker, StringComparison.Ordinal))
-            run.Succeeded("Il lettore ha elaborato la DTD ed espanso l'entità. Da qui, un'entità che punta a un " +
-                          "file o a un indirizzo interno li farebbe leggere al server: è l'attacco XXE.");
-        else
-            run.Blocked("Il lettore ha rifiutato la DTD: le entità non vengono elaborate, quindi l'XXE è impossibile.");
+        run.Failed("Questo caso si prova a mano: segui i passi nella pagina del capitolo.");
+        return Task.CompletedTask;
     }
 }

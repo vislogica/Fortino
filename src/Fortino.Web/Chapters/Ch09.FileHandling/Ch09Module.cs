@@ -10,8 +10,8 @@ namespace Fortino.Web.Chapters.Ch09;
 //   POST /orders/{orderId}/documents            caricamento    (caso 9.1)
 //   GET  /orders/{orderId}/documents/content    scaricamento   (caso 9.2)
 // Risponde la versione scelta dal cookie della prova; fuori da una prova, la corretta.
-// Il caso 9.1 (caricamento) si prova dalla console del browser; il 9.2 (scaricamento) dalla
-// barra degli indirizzi.
+// Il caso 9.1 (caricamento) si prova dal modulo «Allega un documento» della pagina dell'ordine;
+// il 9.2 (scaricamento) dalla barra degli indirizzi.
 public sealed class Ch09Module : ILabChapterModule
 {
     public int Chapter => 9;

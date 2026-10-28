@@ -2,11 +2,13 @@
 @attribute [Authorize(Roles = "Admin")]
 @inject FortinoQueries Queries
 
-@* Le impostazioni dell'azienda, riservate agli amministratori. L'IBAN si cambia con l'API
-   PUT /staff/settings/payment-iban: è il passo centrale del caso 7.2 del Laboratorio (capitolo 7). *@
+@* Le impostazioni dell'azienda, riservate agli amministratori. Cambiare l'IBAN è il passo
+   centrale del caso 7.2 del Laboratorio (capitolo 7): poi si guardano le fatture già emesse. *@
 
 <PageTitle>Impostazioni · Fortino</PageTitle>
 <MudText Typo="Typo.h5" Class="mb-4">Impostazioni dell'azienda</MudText>
+
+<ActionOutcome Outcome="@Outcome" Error="@Error" SuccessText="IBAN aziendale aggiornato." />
 
 @if (_settings is null)
 {
@@ -24,10 +26,20 @@ else
         <MudText Typo="Typo.caption" Class="mt-2 d-block">
             È l'IBAN che compare sulle fatture emesse da oggi in poi.
         </MudText>
+
+        <form method="post" action="/settings/iban" class="mt-4" style="max-width:480px">
+            <AntiforgeryToken />
+            <label for="iban" class="mud-typography-body2">Nuovo IBAN su cui pagare</label>
+            <input class="fortino-input" id="iban" name="Iban" value="@_settings.PaymentIban" required />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">Salva l'IBAN</MudButton>
+        </form>
     </MudPaper>
 }
 
 @code {
+    [SupplyParameterFromQuery(Name = "esito")] public string? Outcome { get; set; }
+    [SupplyParameterFromQuery(Name = "errore")] public string? Error { get; set; }
+
     private CompanySettings? _settings;
 
     protected override async Task OnInitializedAsync() => _settings = await Queries.GetCompanySettingsAsync();

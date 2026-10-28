@@ -17,11 +17,14 @@
         <AuthorizeView Roles="Admin" Context="admin">
             <MudNavLink Href="/users" Icon="@Icons.Material.Outlined.ManageAccounts">Utenti</MudNavLink>
             <MudNavLink Href="/settings" Icon="@Icons.Material.Outlined.Settings">Impostazioni</MudNavLink>
+            <MudNavLink Href="/database" Icon="@Icons.Material.Outlined.Storage">Vista database</MudNavLink>
         </AuthorizeView>
     </AuthorizeView>
     <AuthorizeView Policy="@Policies.Customer">
         <MudText Typo="Typo.overline" Class="fortino-nav-group">Portale clienti</MudText>
         <MudNavLink Href="/portal" Match="NavLinkMatch.All" Icon="@Icons.Material.Outlined.Storefront">I miei ordini</MudNavLink>
+        <MudNavLink Href="/portal/catalogo" Icon="@Icons.Material.Outlined.Inventory2">Catalogo</MudNavLink>
+        <MudNavLink Href="/portal/assistente" Icon="@Icons.Material.Outlined.SmartToy">Assistente</MudNavLink>
         <MudNavLink Href="/portal/quantities" Icon="@Icons.Material.Outlined.Tune">Ordini in bozza</MudNavLink>
         <MudNavLink Href="/portal/invoices" Icon="@Icons.Material.Outlined.ReceiptLong">Le mie fatture</MudNavLink>
         <MudNavLink Href="/portal/profile" Icon="@Icons.Material.Outlined.Badge">La mia anagrafica</MudNavLink>

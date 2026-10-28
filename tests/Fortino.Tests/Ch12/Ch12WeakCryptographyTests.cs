@@ -1,67 +1,70 @@
 using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using Dapper;
 using Fortino.Web.Chapters.Ch12.Secure;
 using Fortino.Web.Chapters.Ch12.Vulnerable;
 using Fortino.Web.Data;
 using Fortino.Web.Lab;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Fortino.Tests.Ch12;
 
 // Capitolo 12 — Crittografia debole.
-// Le prove rifanno quello che fa il lettore dalla console: inizia la prova, entra come Anna Rossi e
-// chiama l'indirizzo vero; più due controlli diretti sui generatori.
+// Le prove rifanno quello che fa il lettore nella pagina «Utenti»: inizia la prova, entra come Anna
+// Rossi e usa i moduli veri; poi guarda il database (le impronte) e la posta finta (i codici).
+// Più due controlli diretti sui generatori.
 public class Ch12WeakCryptographyTests
 {
-    // 12.1 — con MD5 la stessa password dà sempre lo stesso hash.
+    // 12.1 — con MD5 due utenti con la stessa password hanno la stessa impronta.
     [Fact]
-    public async Task Vulnerable_hash_is_the_same_every_time()
+    public async Task Vulnerable_hash_is_the_same_for_two_users()
     {
         using var factory = new FortinoFactory();
         var anna = await StartTrialAsAnnaAsync(factory, "weak-hash", CodeVariant.Vulnerable);
 
-        var first = await HashAsync(anna, "password123");
-        var second = await HashAsync(anna, "password123");
+        var (first, second) = await AddTwoUsersWithTheSamePasswordAsync(factory, anna);
 
         Assert.Equal(first, second);
         Assert.Equal("482C811DA5D5B4BC6D497FFA98491E38", first);
     }
 
-    // 12.1 — con PBKDF2 e sale casuale, due hash della stessa password sono diversi.
+    // 12.1 — con PBKDF2 e salt casuale, le due impronte della stessa password sono diverse.
     [Fact]
-    public async Task Secure_hash_is_different_every_time()
+    public async Task Secure_hash_is_different_for_two_users()
     {
         using var factory = new FortinoFactory();
         var anna = await StartTrialAsAnnaAsync(factory, "weak-hash", CodeVariant.Secure);
 
-        var first = await HashAsync(anna, "password123");
-        var second = await HashAsync(anna, "password123");
+        var (first, second) = await AddTwoUsersWithTheSamePasswordAsync(factory, anna);
 
         Assert.NotEqual(first, second);
     }
 
-    // 12.2 — il codice vulnerabile è di sole 8 cifre (System.Random).
+    // 12.2 — i codici vulnerabili mandati insieme sono uguali, di sole 8 cifre (System.Random).
     [Fact]
-    public async Task Vulnerable_reset_token_is_eight_digits()
+    public async Task Vulnerable_reset_codes_sent_together_are_identical()
     {
         using var factory = new FortinoFactory();
         var anna = await StartTrialAsAnnaAsync(factory, "predictable-token", CodeVariant.Vulnerable);
 
-        var token = await TokenAsync(anna);
+        var codes = await SendResetCodesAsync(factory, anna, "mario", "lumen", "verdi");
 
-        Assert.Matches("^[0-9]{8}$", token);
+        Assert.Equal(3, codes.Count);
+        Assert.Single(codes.Distinct());
+        Assert.Matches("^[0-9]{8}$", codes[0]);
     }
 
-    // 12.2 — il codice corretto è lungo e casuale (RandomNumberGenerator).
+    // 12.2 — i codici corretti sono lunghi e tutti diversi (RandomNumberGenerator).
     [Fact]
-    public async Task Secure_reset_token_is_long_and_random()
+    public async Task Secure_reset_codes_are_long_and_all_different()
     {
         using var factory = new FortinoFactory();
         var anna = await StartTrialAsAnnaAsync(factory, "predictable-token", CodeVariant.Secure);
 
-        var token = await TokenAsync(anna);
+        var codes = await SendResetCodesAsync(factory, anna, "mario", "lumen", "verdi");
 
-        Assert.True(token.Length > 8, token);
+        Assert.Equal(3, codes.Distinct().Count());
+        Assert.All(codes, c => Assert.True(c.Length > 8, c));
     }
 
     // L'esempio del libro: con lo stesso seme System.Random dà sempre lo stesso codice.
@@ -84,20 +87,56 @@ public class Ch12WeakCryptographyTests
         Assert.NotEqual(first, second);
     }
 
-    private static async Task<string> HashAsync(HttpClient client, string password)
+    // «Aggiungi un utente» due volte, prova1 e prova2 con password123; poi le due impronte nel database.
+    private static async Task<(string, string)> AddTwoUsersWithTheSamePasswordAsync(FortinoFactory factory, HttpClient anna)
     {
-        using var response = await client.PostAsJsonAsync("/password/hash", new { Password = password });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonObject>();
-        return json!["hash"]!.GetValue<string>();
+        foreach (var username in new[] { "prova1", "prova2" })
+        {
+            string location = await PostFormAsync(anna, "/users", "/users/nuovo", new()
+            {
+                ["Username"] = username,
+                ["Password"] = "password123",
+            });
+            Assert.Contains("esito=salvato", location);
+        }
+
+        await using var db = await factory.Services.GetRequiredService<DbConnectionFactory>().OpenAsync();
+        var hashes = (await db.QueryAsync<string>(
+            "SELECT PasswordHash FROM AppUser WHERE Username IN ('prova1', 'prova2') ORDER BY Username;")).AsList();
+        return (hashes[0], hashes[1]);
     }
 
-    private static async Task<string> TokenAsync(HttpClient client)
+    // Spunta gli utenti e preme «Invia il codice di reset»; poi legge i codici nelle email della posta finta.
+    private static async Task<List<string>> SendResetCodesAsync(FortinoFactory factory, HttpClient anna, params string[] usernames)
     {
-        using var response = await client.PostAsync("/password/reset-token", null);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var json = await response.Content.ReadFromJsonAsync<JsonObject>();
-        return json!["token"]!.GetValue<string>();
+        await using var db = await factory.Services.GetRequiredService<DbConnectionFactory>().OpenAsync();
+        var ids = (await db.QueryAsync<int>("SELECT Id FROM AppUser WHERE Username IN @usernames;", new { usernames })).AsList();
+
+        string token = await PageTokenAsync(anna, "/users");
+        var fields = new List<KeyValuePair<string, string>> { new("__RequestVerificationToken", token) };
+        fields.AddRange(ids.Select(id => new KeyValuePair<string, string>("UserIds", id.ToString())));
+        using var response = await anna.PostAsync("/users/reset-password", new FormUrlEncodedContent(fields));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains($"inviati={ids.Count}", response.Headers.Location?.OriginalString);
+
+        var bodies = await db.QueryAsync<string>("SELECT HtmlBody FROM MailMessage WHERE Subject LIKE '%reimpostare la password%';");
+        return bodies.Select(b => Regex.Match(b, @"la password è: (?<c>\S+)").Groups["c"].Value).ToList();
+    }
+
+    private static async Task<string> PostFormAsync(HttpClient client, string page, string action, Dictionary<string, string> fields)
+    {
+        fields["__RequestVerificationToken"] = await PageTokenAsync(client, page);
+        using var response = await client.PostAsync(action, new FormUrlEncodedContent(fields));
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        return response.Headers.Location?.OriginalString ?? "";
+    }
+
+    private static async Task<string> PageTokenAsync(HttpClient client, string page)
+    {
+        var html = await client.GetStringAsync(page);
+        var token = Regex.Match(html, """name="__RequestVerificationToken"[^>]*?value="(?<t>[^"]+)"|value="(?<t>[^"]+)"[^>]*?name="__RequestVerificationToken" """);
+        Assert.True(token.Success, $"Nessun modulo con token nella pagina {page}.");
+        return WebUtility.HtmlDecode(token.Groups["t"].Value);
     }
 
     private static async Task<HttpClient> StartTrialAsAnnaAsync(FortinoFactory factory, string caseSlug, CodeVariant variant)

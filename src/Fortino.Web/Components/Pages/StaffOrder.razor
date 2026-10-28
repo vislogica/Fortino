@@ -28,6 +28,25 @@ else
         <MudChip T="string" Size="Size.Small" Color="statusColor" Variant="Variant.Text" Class="ml-3">@statusText</MudChip>
     </div>
 
+    <ActionOutcome Outcome="@Outcome" Error="@Error" SuccessText="Stato dell'ordine aggiornato." />
+
+    @* I pulsanti di stato: la pagina mostra solo i passaggi previsti dallo stato che vedeva quando
+       è stata aperta. Se nel frattempo un collega cambia lo stato da un'altra finestra, i pulsanti
+       restano quelli di prima: è qui che si prova il caso 7.3 del Laboratorio (capitolo 7). *@
+    @if (StatusButtons(_order.Status) is { Count: > 0 } buttons)
+    {
+        <div class="d-flex mb-4" style="gap:8px">
+            @foreach (var (target, text, color) in buttons)
+            {
+                <form method="post" action="@($"/orders/{_order.Id}/stato")" class="fortino-menu-form">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="Status" value="@target" />
+                    <MudButton ButtonType="ButtonType.Submit" Size="Size.Small" Variant="Variant.Outlined" Color="color">@text</MudButton>
+                </form>
+            }
+        </div>
+    }
+
     <MudPaper Outlined="true" Class="pa-4 mb-4">
         <MudSimpleTable Dense="true" Elevation="0">
             <tbody>
@@ -59,10 +78,61 @@ else
         </tbody>
     </MudSimpleTable>
 
+    @* Le fatture dell'ordine. «Crea la fattura» c'è solo se, quando la pagina è stata aperta, l'ordine
+       non ne aveva: è qui che si prova il caso 16.2 del Laboratorio (capitolo 16). *@
+    <MudText Typo="Typo.h6" Class="mt-6 mb-2">Fatture dell'ordine</MudText>
+    @if (InvoiceCreated is not null)
+    {
+        <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">Fattura creata.</MudAlert>
+    }
+    @if (InvoiceError is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@InvoiceError</MudAlert>
+    }
+    @if (_invoices.Count == 0)
+    {
+        <MudText Typo="Typo.body2" Class="mb-2 mud-text-secondary">L'ordine non ha ancora una fattura.</MudText>
+        <form method="post" action="@($"/orders/{OrderId}/fattura")" class="fortino-menu-form">
+            <AntiforgeryToken />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Primary">Crea la fattura</MudButton>
+        </form>
+    }
+    else
+    {
+        <MudList T="string" Dense="true" Class="pa-0">
+            @foreach (var invoice in _invoices)
+            {
+                var (invoiceText, _) = Labels.Invoice(invoice.Status);
+                <MudListItem T="string" Icon="@Icons.Material.Outlined.ReceiptLong">
+                    Fattura n. interno @invoice.Id · @invoiceText · @Labels.Money(invoice.Total)
+                </MudListItem>
+            }
+        </MudList>
+    }
+
+    @* La nota riservata del cliente: il pulsante c'è per tutti, la pagina la chiede al server
+       (GET /orders/{id}/note) e mostra la risposta. Chi può leggerla lo decide il server: è qui che
+       si prova il caso 13.2 del Laboratorio (capitolo 13). *@
+    <MudText Typo="Typo.h6" Class="mt-6 mb-2">Nota riservata del cliente</MudText>
+    <MudText Typo="Typo.body2" Class="mb-2 mud-text-secondary">La legge solo il cliente che ha fatto l'ordine.</MudText>
+    @* Un pulsante HTML con l'aspetto di MudBlazor: MudButton non lascia passare l'attributo onclick. *@
+    <button type="button" class="mud-button-root mud-button mud-button-outlined mud-button-outlined-primary mud-button-outlined-size-medium"
+            onclick="fortinoCh13.showNote(@OrderId)">
+        <span class="mud-button-label">Mostra la nota riservata</span>
+    </button>
+    <div id="nota-riservata" class="fortino-note-result mt-3" hidden></div>
+
     @* Documenti allegati all'ordine: è qui che si provano i casi 9.1 (caricamento) e 9.2
        (scaricamento) del Laboratorio. Lo scaricamento passa per l'indirizzo
        /orders/{id}/documents/content?name=... *@
     <MudText Typo="Typo.h6" Class="mt-6 mb-2">Documenti allegati</MudText>
+    @if (!string.IsNullOrEmpty(UploadedPath))
+    {
+        @* Solo per il Laboratorio: un gestionale vero non mostrerebbe il percorso sul server. *@
+        <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">
+            Documento allegato. Salvato sul server in: <code>@UploadedPath</code>
+        </MudAlert>
+    }
     @if (_documents.Count == 0)
     {
         <MudText Typo="Typo.body2" Class="mud-text-secondary">Nessun documento allegato.</MudText>
@@ -78,19 +148,55 @@ else
             }
         </MudList>
     }
+
+    @* Il modulo per allegare un documento: è qui che si prova il caso 9.1 del Laboratorio.
+       Il campo «Nome del documento» decide il nome con cui il file viene registrato. *@
+    <form method="post" enctype="multipart/form-data" action="@($"/orders/{OrderId}/documents")"
+          class="d-flex align-end mt-3" style="gap:12px;max-width:900px">
+        <AntiforgeryToken />
+        <div>
+            <label for="file" class="mud-typography-body2">File (PDF, PNG o JPG)</label>
+            <input class="fortino-input" id="file" name="file" type="file" required />
+        </div>
+        <div style="flex:1">
+            <label for="docname" class="mud-typography-body2">Nome del documento (facoltativo)</label>
+            <input class="fortino-input" id="docname" name="name" placeholder="per esempio preventivo-ottobre.pdf" />
+        </div>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Primary">Allega</MudButton>
+    </form>
 }
 
 @code {
     [Parameter] public int OrderId { get; set; }
+
+    // Dove il server ha salvato il documento appena allegato (caso 9.1 del Laboratorio).
+    [SupplyParameterFromQuery(Name = "caricato")] public string? UploadedPath { get; set; }
+
+    // La fattura appena creata (caso 16.2).
+    [SupplyParameterFromQuery(Name = "fattura")] public string? InvoiceCreated { get; set; }
+    [SupplyParameterFromQuery(Name = "errore-fattura")] public string? InvoiceError { get; set; }
+
+    [SupplyParameterFromQuery(Name = "esito")] public string? Outcome { get; set; }
+    [SupplyParameterFromQuery(Name = "errore")] public string? Error { get; set; }
 
     [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
 
     private Order? _order;
     private IReadOnlyList<OrderLine> _lines = [];
     private IReadOnlyList<StoredDocument> _documents = [];
+    private IReadOnlyList<Invoice> _invoices = [];
     private MarkupString _note;
     private bool _loaded;
     private List<BreadcrumbItem> _breadcrumbs = [];
+
+    // I passaggi che l'interfaccia propone per lo stato che vede: bozza → approvato → spedito,
+    // e l'annullamento finché l'ordine non è spedito.
+    private static List<(OrderStatus Target, string Text, Color Color)> StatusButtons(OrderStatus status) => status switch
+    {
+        OrderStatus.Draft => [(OrderStatus.Approved, "Approva", Color.Primary), (OrderStatus.Cancelled, "Annulla l'ordine", Color.Error)],
+        OrderStatus.Approved => [(OrderStatus.Shipped, "Spedisci", Color.Primary), (OrderStatus.Cancelled, "Annulla l'ordine", Color.Error)],
+        _ => [],
+    };
 
     private string DownloadHref(StoredDocument doc) =>
         $"/orders/{OrderId}/documents/content?name={Uri.EscapeDataString(doc.OriginalName)}";
@@ -103,6 +209,7 @@ else
         {
             _lines = await Queries.GetOrderLinesAsync(OrderId);
             _documents = await Queries.GetOrderDocumentsAsync(OrderId);
+            _invoices = (await Queries.GetInvoicesAsync()).Where(i => i.OrderId == OrderId).ToList();
 
             // Il Laboratorio decide quale versione del codice prepara la nota (caso 2.2):
             // fuori da una prova è sempre quella corretta.

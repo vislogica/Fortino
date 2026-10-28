@@ -118,7 +118,7 @@
     "user.Email = newEmail;"
   ],
   "Ch08.MassAssignment/Vulnerable/OrderLineApi.cs#riga-ordine-vulnerabile": [
-    "async (int orderId, OrderLine line,",
+    "async (int orderId, [FromForm] OrderLine line,",
     "db.OrderLines.Add(line);"
   ],
   "Ch08.MassAssignment/Vulnerable/ProfileApi.cs#profilo-vulnerabile": [
@@ -129,7 +129,7 @@
   "Ch09.FileHandling/Secure/DocumentApi.cs#salva-file-corretto": [
     "string storedName = $\"{Guid.NewGuid():N}{extension}\";",
     "bool extensionIsAllowed = AllowedExtensions.Contains(extension);",
-    "string originalName = Path.GetFileName(file.FileName);"
+    "string originalName = Path.GetFileName(chosenName);"
   ],
   "Ch09.FileHandling/Secure/DocumentApi.cs#scarica-file-corretto": [
     "if (document is null)",
@@ -211,7 +211,7 @@
   ],
   "Ch13.ErrorHandling/Vulnerable/ErrorHandlingApi.cs#errore-dettagli-vulnerabile": [
     "string errorDetails = ex.ToString();",
-    "Results.Problem(detail: errorDetails"
+    "IResult response = Ch13Shared.ShowError(request.InvoiceId, errorDetails);"
   ],
   "Ch13.ErrorHandling/Vulnerable/ErrorHandlingApi.cs#fail-open-vulnerabile": [
     "int customerId = int.Parse(customerIdText!);",
@@ -231,10 +231,11 @@
     "logger.LogInformation(\"Tentativo di accesso: utente={Username}, password={Password}\","
   ],
   "Ch15.OpenRedirect/Secure/RedirectApi.cs#host-header-corretto": [
-    "string link = $\"{Ch15Shared.OfficialBaseUrl}/reset-password?token={Guid.NewGuid():N}\";"
+    "string officialUrl = config[\"App:PublicUrl\"]!;",
+    "string link = $\"{officialUrl}/reset-password?token={Guid.NewGuid():N}\";"
   ],
   "Ch15.OpenRedirect/Secure/RedirectApi.cs#open-redirect-corretto": [
-    "string safeUrl = SafeReturnUrl(form.ReturnUrl);",
+    "string safeUrl = SafeReturnUrl(returnUrl);",
     "IResult response = Results.LocalRedirect(safeUrl);"
   ],
   "Ch15.OpenRedirect/Vulnerable/RedirectApi.cs#host-header-vulnerabile": [
@@ -242,11 +243,11 @@
     "string link = $\"https://{host}/reset-password?token={Guid.NewGuid():N}\";"
   ],
   "Ch15.OpenRedirect/Vulnerable/RedirectApi.cs#open-redirect-vulnerabile": [
-    "string returnUrl = form.ReturnUrl ?? \"/\";",
-    "IResult response = Results.Redirect(returnUrl);"
+    "string target = returnUrl ?? \"/\";",
+    "IResult response = Results.Redirect(target);"
   ],
   "Ch16.RaceCondition/Secure/RaceApi.cs#coupon-corretto": [
-    "WHERE Code = @Code AND IsUsed = 0;",
+    "WHERE Code = @code AND IsUsed = 0;",
     "bool couponRedeemed = changedRows == 1;"
   ],
   "Ch16.RaceCondition/Secure/RaceApi.cs#doppia-fattura-corretto": [
@@ -255,12 +256,12 @@
   ],
   "Ch16.RaceCondition/Vulnerable/RaceApi.cs#coupon-vulnerabile": [
     "bool alreadyUsed = await connection.ExecuteScalarAsync<bool>(readSql, readParameters);",
-    "await Task.Delay(50);   // finestra: elaborazione, rete, attesa del database",
-    "UPDATE Coupon SET IsUsed = 1, UsedByOrderId = @OrderId WHERE Code = @Code;"
+    "await Task.Delay(Ch16Shared.CheckDelay);",
+    "UPDATE Coupon SET IsUsed = 1, UsedByOrderId = @orderId WHERE Code = @code;"
   ],
   "Ch16.RaceCondition/Vulnerable/RaceApi.cs#doppia-fattura-vulnerabile": [
     "bool invoiceExists = await connection.ExecuteScalarAsync<bool>(readSql, readParameters);",
-    "await Task.Delay(50);"
+    "await Task.Delay(Ch16Shared.CheckDelay);"
   ],
   "Ch17.AiRisks/Secure/AssistantApi.cs#accesso-eccessivo-corretto": [
     "int customerId = user.GetCustomerId() ?? 0;",

@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using Fortino.Web.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fortino.Web.Chapters.Ch09.Secure;
 
@@ -28,20 +29,23 @@ public static class DocumentApi
     // Un documento salvato, come si legge dal database.
     private sealed record StoredDocumentRow(string StoredName, string OriginalName, string ContentType);
 
+    // Un caricamento rifiutato: si torna all'ordine con il motivo.
+    private static IResult Refused(int orderId, string reason) =>
+        Results.LocalRedirect($"/orders/{orderId}?errore={Uri.EscapeDataString(reason)}");
+
     // Caricamento: POST /orders/{orderId}/documents
     public static void MapUpload(RouteGroupBuilder group)
     {
         #region libro: salva-file-corretto
         // Il file ricevuto si salva con un nome deciso dal server, non dall'utente.
-        group.MapPost("/orders/{orderId:int}/documents", async (int orderId, IFormFile file,
+        group.MapPost("/orders/{orderId:int}/documents", async (int orderId, IFormFile file, [FromForm] string? name,
             DocumentStore store, DbConnectionFactory factory) =>
         {
             // PASSO 1: il file non deve essere vuoto né troppo grande.
             bool sizeIsValid = file.Length > 0 && file.Length <= MaxSize;
             if (!sizeIsValid)
             {
-                return Results.Problem($"Il file deve essere tra 1 byte e {MaxSize / (1024 * 1024)} MB.",
-                    statusCode: StatusCodes.Status400BadRequest);
+                return Refused(orderId, $"Il file deve essere tra 1 byte e {MaxSize / (1024 * 1024)} MB.");
             }
 
             // PASSO 2: dal nome originale si tiene solo l'estensione, e solo se è tra quelle
@@ -50,15 +54,13 @@ public static class DocumentApi
             bool extensionIsAllowed = AllowedExtensions.Contains(extension);
             if (!extensionIsAllowed)
             {
-                return Results.Problem("Tipo di file non ammesso. Sono accettati PDF, PNG e JPG.",
-                    statusCode: StatusCodes.Status400BadRequest);
+                return Refused(orderId, "Tipo di file non ammesso. Sono accettati PDF, PNG e JPG.");
             }
             string expectedType = AllowedTypes[extension];
             bool typeMatches = string.Equals(expectedType, file.ContentType, StringComparison.OrdinalIgnoreCase);
             if (!typeMatches)
             {
-                return Results.Problem("Tipo di file non ammesso. Sono accettati PDF, PNG e JPG.",
-                    statusCode: StatusCodes.Status400BadRequest);
+                return Refused(orderId, "Tipo di file non ammesso. Sono accettati PDF, PNG e JPG.");
             }
 
             // PASSO 3: il nome con cui il file è salvato su disco è un GUID: non contiene niente
@@ -72,8 +74,9 @@ public static class DocumentApi
                 await file.CopyToAsync(stream);
             }
 
-            // PASSO 5: nel database si tiene il nome originale (solo per mostrarlo) e il nome su disco.
-            string originalName = Path.GetFileName(file.FileName);   // mai usato per leggere o scrivere
+            // PASSO 5: nel database si tiene il nome scelto dall'utente (solo per mostrarlo) e il nome su disco.
+            string chosenName = string.IsNullOrWhiteSpace(name) ? file.FileName : name;
+            string originalName = Path.GetFileName(chosenName);      // mai usato per leggere o scrivere
             string uploadedAt = DateTime.UtcNow.ToString("o");
             await using DbConnection connection = await factory.OpenAsync();
             string sql =
@@ -93,10 +96,10 @@ public static class DocumentApi
             };
             long id = await connection.ExecuteScalarAsync<long>(sql, parameters);
 
-            // PASSO 6: si restituisce il numero del documento e dove è stato salvato (dentro la cartella).
-            IResult response = Results.Ok(new { id, path = fullPath });
+            // PASSO 6: si torna all'ordine; per il Laboratorio la pagina mostra dove è stato salvato.
+            IResult response = Results.LocalRedirect($"/orders/{orderId}?caricato={Uri.EscapeDataString(fullPath)}");
             return response;
-        }).DisableAntiforgery();
+        });
         #endregion
     }
 

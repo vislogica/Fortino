@@ -8,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace Fortino.Web.Auth;
 
 // Accesso e uscita. Il controllo di nome e password lo fa il codice del capitolo 3 (caso 3.1):
-// fuori da una prova è sempre la versione corretta. Il caso 15.1 ha un suo accesso.
+// fuori da una prova è sempre la versione corretta. Dove si torna dopo l'accesso, durante la prova
+// del caso 15.1, lo decide il codice del capitolo 15.
 public static class AuthEndpoints
 {
     public sealed class LoginForm
@@ -65,6 +66,15 @@ public static class AuthEndpoints
             await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                 FortinoClaims.CreatePrincipal(user, CookieAuthenticationDefaults.AuthenticationScheme));
             logger.LogInformation("Accesso riuscito per l'utente {Username}.", user.Username);
+
+            // Caso 15.1 (open redirect): durante la prova, il ritorno dopo l'accesso lo gestisce la
+            // versione del codice del capitolo 15 scelta dal cookie della prova.
+            if (trial.Current is { Chapter: 15, CaseSlug: "open-redirect" })
+            {
+                return trial.VariantFor(15, "open-redirect") == CodeVariant.Vulnerable
+                    ? Chapters.Ch15.Vulnerable.RedirectApi.RedirectAfterLogin(form.ReturnUrl)
+                    : Chapters.Ch15.Secure.RedirectApi.RedirectAfterLogin(form.ReturnUrl);
+            }
             return Results.LocalRedirect(SafeReturnUrl(form.ReturnUrl));
         });
 
@@ -80,7 +90,6 @@ public static class AuthEndpoints
     // non rivela quali nomi utente esistono (capitolo 3).
     private static readonly string DummyHash = new PasswordHasher<AppUser>().HashPassword(new AppUser(), "dummy-password");
 
-    // Pubblico perché lo riusa la pagina di accesso del capitolo 15 (open redirect).
     public static bool VerifyPassword(AppUser? user, string password)
     {
         var hasher = new PasswordHasher<AppUser>();

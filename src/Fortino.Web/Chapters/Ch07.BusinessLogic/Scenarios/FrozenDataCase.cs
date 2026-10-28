@@ -17,9 +17,9 @@ public sealed class FrozenDataCase : Ch07Case
     private static readonly IReadOnlyList<string> Steps =
     [
         "Dopo l'accesso sei nel gestionale come Anna Rossi (Amministratrice), nella pagina «Fatture». Immagina che le sue credenziali siano state rubate.",
-        "Guarda la colonna «IBAN su cui pagare»: le fatture già emesse, 2026/014 e 2026/015, riportano l'IBAN aziendale che finisce con 123456. Apri «Impostazioni» nel menu: l'IBAN aziendale è lo stesso.",
-        "Cambia l'IBAN aziendale chiamando l'API dalla console (F12 › Console). È un'operazione legittima per un amministratore: `fetch('/staff/settings/payment-iban', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({iban:'IT00X0000000000000000000000'})}).then(r=>r.status)`. La risposta è 204.",
-        "Ricarica «Impostazioni» (F5): l'IBAN aziendale è quello nuovo, come deve essere.",
+        "Guarda la colonna «IBAN su cui pagare»: le fatture già emesse, 2026/014 e 2026/015, riportano l'IBAN aziendale che finisce con 123456.",
+        "Apri «Impostazioni» nel menu. Nel campo «Nuovo IBAN su cui pagare» scrivi `IT00X0000000000000000000000` e premi «Salva l'IBAN». È un'operazione legittima per un amministratore.",
+        "La pagina conferma «IBAN aziendale aggiornato» e mostra il nuovo IBAN, come deve essere.",
         "Apri «Fatture» e guarda di nuovo la colonna «IBAN su cui pagare» delle fatture già emesse. Poi clicca 2026/014 e guarda l'IBAN sul documento che riceve il cliente.",
     ];
 

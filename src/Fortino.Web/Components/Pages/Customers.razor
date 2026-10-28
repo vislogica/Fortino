@@ -32,11 +32,35 @@ else
             </TemplateColumn>
         </Columns>
     </MudDataGrid>
+
+    @* L'importazione di un cliente da un file XML: è qui che si prova il caso 18.1 (XXE) del
+       Laboratorio (capitolo 18). *@
+    <MudPaper Outlined="true" Class="pa-4 mt-6" Style="max-width:720px">
+        <MudText Typo="Typo.h6" Class="mb-1">Importa un cliente da XML</MudText>
+        <MudText Typo="Typo.body2" Class="mb-3">Il file arriva dal gestionale di un altro ufficio: il nome del cliente sta in <code>&lt;nome&gt;</code>.</MudText>
+        @if (Imported is not null)
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">Cliente importato: ora è nell'elenco qui sopra.</MudAlert>
+        }
+        @if (ImportError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@ImportError</MudAlert>
+        }
+        <form method="post" enctype="multipart/form-data" action="/import/xml" class="d-flex align-end" style="gap:12px">
+            <AntiforgeryToken />
+            <input class="fortino-input" id="xml-file" name="file" type="file" accept=".xml" required />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Primary">Importa</MudButton>
+        </form>
+    </MudPaper>
 }
 
 @code {
     [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
     [CascadingParameter] private LabTrialState Trial { get; set; } = default!;
+
+    // Esito dell'importazione da XML (caso 18.1).
+    [SupplyParameterFromQuery(Name = "importato")] public string? Imported { get; set; }
+    [SupplyParameterFromQuery(Name = "errore-import")] public string? ImportError { get; set; }
 
     private CustomerListResult? _result;
 

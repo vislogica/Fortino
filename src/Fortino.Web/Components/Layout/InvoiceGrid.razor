@@ -2,7 +2,7 @@
     <Columns>
         <TemplateColumn Title="Numero">
             <CellTemplate>
-                @if (LinkToDetail)
+                @if (LinkToDetail && context.Item.Status != InvoiceStatus.Draft)
                 {
                     <MudLink Href="@($"/invoices/{context.Item.Id}")">@context.Item.DisplayNumber</MudLink>
                 }
@@ -34,6 +34,19 @@
                 <MudChip T="string" Size="Size.Small" Color="color" Variant="Variant.Text">@text</MudChip>
             </CellTemplate>
         </TemplateColumn>
+        @if (LinkToDetail)
+        {
+            @* Il collegamento «Modifica» c'è solo per le bozze: una fattura emessa non si tocca.
+               L'interfaccia però non basta (caso 7.1 del Laboratorio): l'indirizzo si scrive anche a mano. *@
+            <TemplateColumn Title="">
+                <CellTemplate>
+                    @if (context.Item.Status == InvoiceStatus.Draft)
+                    {
+                        <MudLink Href="@($"/invoices/{context.Item.Id}/modifica")">Modifica</MudLink>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+        }
     </Columns>
 </MudDataGrid>
 

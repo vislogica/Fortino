@@ -7,7 +7,7 @@ namespace Fortino.Web.Chapters.Ch17.Secure;
 // VERSIONE CORRETTA.
 public static class AssistantApi
 {
-    public static void Map(RouteGroupBuilder group)
+    public static void MapAsk(RouteGroupBuilder group)
     {
         #region libro: prompt-injection-corretto
         // Caso 17.1 - difesa dalla prompt injection. La nota resta un dato: al modello va solo la
@@ -30,7 +30,10 @@ public static class AssistantApi
             return response;
         });
         #endregion
+    }
 
+    public static void MapOrders(RouteGroupBuilder group)
+    {
         #region libro: accesso-eccessivo-corretto
         // Caso 17.2 - difesa dall'accesso eccessivo. Di quale cliente mostrare gli ordini non lo
         // decide la domanda, lo decide chi è collegato. ESEMPIO: anche se Ottica Lumen scrive

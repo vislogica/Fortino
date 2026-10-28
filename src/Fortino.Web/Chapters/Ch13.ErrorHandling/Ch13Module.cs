@@ -5,9 +5,9 @@ namespace Fortino.Web.Chapters.Ch13;
 // Capitolo 13 — Gestione di errori ed eccezioni.
 // Gli indirizzi sono quelli veri dell'applicazione, registrati una volta per versione; risponde
 // quella scelta dal cookie della prova, fuori da una prova la corretta:
-//   POST /invoices/issue         emissione di una fattura   (caso 13.1, errore che rivela troppo)
-//   GET  /orders/{id}/note       nota riservata dell'ordine (caso 13.2, errore che apre la porta)
-// I due casi si provano dalla console del browser.
+//   POST /invoices/issue         «Emetti la fattura», pagina di modifica di una bozza (caso 13.1)
+//   GET  /orders/{id}/note       nota riservata dell'ordine, dalla barra degli indirizzi (caso 13.2)
+// Il 13.1 mostra un errore che rivela troppo, il 13.2 un errore che apre la porta.
 public sealed class Ch13Module : ILabChapterModule
 {
     public int Chapter => 13;

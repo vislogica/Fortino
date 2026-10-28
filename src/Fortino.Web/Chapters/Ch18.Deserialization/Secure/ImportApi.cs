@@ -1,43 +1,49 @@
 namespace Fortino.Web.Chapters.Ch18.Secure;
 
-// VERSIONE CORRETTA. Gli stessi endpoint, ma con i metodi di lettura sicuri.
+// VERSIONE CORRETTA. Le stesse importazioni, con i metodi di lettura sicuri.
 public static class ImportApi
 {
-    public static void Map(RouteGroupBuilder group)
+    // Caso 18.1: «Importa un cliente da XML» della pagina Clienti.
+    public static void MapXml(RouteGroupBuilder group)
     {
-        group.MapPost("/import/xml", async (HttpRequest http) =>
+        group.MapPost("/import/xml", async (IFormFile file, Ch18Imports imports) =>
         {
-            // PASSO 1: si legge l'XML ricevuto nel corpo della richiesta.
-            using StreamReader bodyReader = new StreamReader(http.Body);
-            string xml = await bodyReader.ReadToEndAsync();
+            // PASSO 1: si legge il file ricevuto.
+            string xml = await Ch18Imports.ReadAsync(file);
 
             try
             {
                 // PASSO 2: lo si interpreta con le impostazioni sicure.
                 string? name = SafeXmlImport.ReadCustomerName(xml);
-                IResult response = Results.Ok(new { name });
-                return response;
+                return await imports.AddCustomerAsync(name);
             }
             catch (System.Xml.XmlException)
             {
                 // PASSO 3: un XML che prova a usare una DTD viene rifiutato dalla lettura sicura.
-                return Results.BadRequest(new { error = "XML non valido." });
+                return Ch18Imports.Refused("/customers", "Il file contiene una DTD: per sicurezza non viene letto.");
             }
         });
+    }
 
-        group.MapPost("/import/json", async (HttpRequest http) =>
+    // Caso 18.2: «Importa un ordine da file» della pagina Ordini.
+    public static void MapJson(RouteGroupBuilder group)
+    {
+        group.MapPost("/import/json", async (IFormFile file) =>
         {
-            // PASSO 1: si legge il JSON ricevuto nel corpo della richiesta.
-            using StreamReader bodyReader = new StreamReader(http.Body);
-            string json = await bodyReader.ReadToEndAsync();
+            // PASSO 1: si legge il file ricevuto.
+            string json = await Ch18Imports.ReadAsync(file);
 
-            // PASSO 2: lo si interpreta nel tipo fisso ImportedOrder.
-            SafeDeserialization.ImportedOrder? order = SafeDeserialization.Read(json);
-
-            // PASSO 3: si risponde con il nome del tipo creato (sempre ImportedOrder).
-            string? createdType = order?.GetType().FullName;
-            IResult response = Results.Ok(new { type = createdType });
-            return response;
+            try
+            {
+                // PASSO 2: lo si interpreta nel tipo fisso ImportedOrder.
+                SafeDeserialization.ImportedOrder? order = SafeDeserialization.Read(json);
+                return Ch18Imports.ShowImported(order);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // PASSO 3: un campo non previsto, come "$type", fa rifiutare il file.
+                return Ch18Imports.Refused("/orders", "Il file contiene campi non previsti per un ordine: non viene importato.");
+            }
         });
     }
 }

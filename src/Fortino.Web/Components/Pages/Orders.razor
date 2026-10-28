@@ -7,7 +7,92 @@
 
 <OrderGrid Items="_items" ShowCustomer="true" DetailPath="/orders" />
 
+@* L'esportazione dei documenti degli ordini in un archivio ZIP. Il campo ha max="10000", ma il
+   numero viaggia nell'indirizzo (/orders/export?count=...): è qui che si prova il caso 10.3 del
+   Laboratorio. Dopo l'esportazione il server torna qui con la misura dell'effetto. *@
+<MudPaper Outlined="true" Class="pa-4 mt-6" Style="max-width:720px">
+    <MudText Typo="Typo.h6" Class="mb-1">Esporta in ZIP</MudText>
+    <MudText Typo="Typo.body2" Class="mb-3">Prepara un archivio con i documenti degli ordini, al massimo 10.000.</MudText>
+    @if (ExportCount is not null)
+    {
+        <MudAlert Severity="@(ExportError is null ? Severity.Warning : Severity.Error)" Dense="true" Class="mb-3">
+            @if (ExportError is null)
+            {
+                @($"Archivio pronto: {ExportCount} documenti, {ExportKb} KB costruiti in memoria, in {Milliseconds} ms.")
+            }
+            else
+            {
+                @($"Esportazione di {ExportCount} documenti rifiutata: {ExportError}")
+            }
+        </MudAlert>
+    }
+    <form method="get" action="/orders/export" class="d-flex align-end" style="gap:12px">
+        <div style="width:160px">
+            <label for="count" class="mud-typography-body2">Quanti documenti</label>
+            <input class="fortino-input" id="count" name="count" type="number" min="1" max="10000" value="100" />
+        </div>
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Primary">Esporta</MudButton>
+    </form>
+</MudPaper>
+
+@* L'importazione di un ordine da un file JSON: è qui che si prova il caso 18.2 (deserializzazione
+   insicura) del Laboratorio (capitolo 18). Il server dice quale classe ha costruito leggendo il file. *@
+<MudPaper Outlined="true" Class="pa-4 mt-6" Style="max-width:720px">
+    <MudText Typo="Typo.h6" Class="mb-1">Importa un ordine da file</MudText>
+    <MudText Typo="Typo.body2" Class="mb-3">Un ordine esportato da un altro programma, in formato JSON.</MudText>
+    @if (ImportedType is not null)
+    {
+        if (ImportedType.EndsWith("ImportedOrder"))
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">Ordine letto dal file (classe <code>@ImportedType</code>).</MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
+                Leggendo il file, il server ha costruito la classe <code>@ImportedType</code>: l'ha scelta il file, non il
+                programma. Il suo costruttore è partito sul server, ha scoperto dove gira e ha lasciato un file.
+                In un attacco vero, al posto di questo, partirebbe un comando scelto dall'attaccante.
+            </MudAlert>
+            @if (Computer is not null)
+            {
+                <MudSimpleTable Dense="true" Elevation="0" Outlined="true" Class="mb-3">
+                    <tbody>
+                        <tr><td style="width:190px"><b>Computer</b></td><td><code>@Computer</code></td></tr>
+                        <tr><td><b>Utente del server</b></td><td><code>@ServerUser</code></td></tr>
+                        <tr><td><b>Cartella del programma</b></td><td><code>@ProgramFolder</code></td></tr>
+                        <tr><td><b>File lasciato sul server</b></td><td><code>@EvidenceFile</code></td></tr>
+                    </tbody>
+                </MudSimpleTable>
+            }
+        }
+    }
+    @if (ImportError is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@ImportError</MudAlert>
+    }
+    <form method="post" enctype="multipart/form-data" action="/import/json" class="d-flex align-end" style="gap:12px">
+        <AntiforgeryToken />
+        <input class="fortino-input" id="json-file" name="file" type="file" accept=".json" required />
+        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Outlined" Color="Color.Primary">Importa</MudButton>
+    </form>
+</MudPaper>
+
 @code {
+    // Esito dell'importazione da file (caso 18.2): la classe costruita, o il motivo del rifiuto.
+    [SupplyParameterFromQuery(Name = "importato")] public string? ImportedType { get; set; }
+    [SupplyParameterFromQuery(Name = "errore-import")] public string? ImportError { get; set; }
+    // Quello che ha scoperto il costruttore della classe scelta dal file, e il file che ha lasciato.
+    [SupplyParameterFromQuery(Name = "computer")] public string? Computer { get; set; }
+    [SupplyParameterFromQuery(Name = "utente")] public string? ServerUser { get; set; }
+    [SupplyParameterFromQuery(Name = "cartella")] public string? ProgramFolder { get; set; }
+    [SupplyParameterFromQuery(Name = "file")] public string? EvidenceFile { get; set; }
+
+    // Esito dell'esportazione (caso 10.3).
+    [SupplyParameterFromQuery(Name = "elementi")] public string? ExportCount { get; set; }
+    [SupplyParameterFromQuery(Name = "kb")] public string? ExportKb { get; set; }
+    [SupplyParameterFromQuery(Name = "ms")] public string? Milliseconds { get; set; }
+    [SupplyParameterFromQuery(Name = "errore")] public string? ExportError { get; set; }
+
     private IReadOnlyList<Order> _items = [];
 
     protected override async Task OnInitializedAsync() => _items = await Queries.GetOrdersAsync();
