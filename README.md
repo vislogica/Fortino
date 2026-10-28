@@ -28,6 +28,29 @@ filled in, a file uploaded, two tabs open on the same page.
 > **Warning.** The code in the `Chapters/*/Vulnerable` folders is insecure on purpose. It is meant for
 > learning: do not copy it into a real application, and do not publish Fortino on a server others can reach.
 
+## How to download the project
+The project is at **https://github.com/vislogica/Fortino**. Choose one of these ways.
+
+**A. As a ZIP file (no Git needed, the simplest way)**
+1. Open https://github.com/vislogica/Fortino in your browser.
+2. Click the green **Code** button, then **Download ZIP**.
+3. Find `Fortino-main.zip` in your *Downloads* folder, right-click it › **Extract All…** and choose a
+   short folder, for example `C:\Fortino`. Short paths avoid problems with long file names on Windows.
+4. Inside you will find `Fortino.sln`: that is the file to open (see *How to start*).
+
+With the ZIP you get a copy of the project as it is today. To get a newer version later, download the ZIP
+again.
+
+**B. With Git (if you already use it)**
+```
+git clone https://github.com/vislogica/Fortino.git
+```
+It creates the `Fortino` folder; later, `git pull` inside it downloads the updates.
+
+**C. From Visual Studio**
+On the start window choose **Clone a repository**, paste `https://github.com/vislogica/Fortino.git`
+and press **Clone**.
+
 ## Requirements
 - .NET SDK 10
 - Visual Studio 2022 (17.14 or later), Visual Studio 2026, or VS Code with C# Dev Kit
@@ -184,6 +207,30 @@ un file caricato, due schede aperte sulla stessa pagina.
 
 > **Attenzione.** Il codice nelle cartelle `Chapters/*/Vulnerable` è volutamente insicuro. Serve a imparare:
 > non copiarlo in un'applicazione vera, e non pubblicare Fortino su un server raggiungibile da altri.
+
+## Come si scarica il progetto
+Il progetto è su **https://github.com/vislogica/Fortino**. Scegli uno di questi modi.
+
+**A. Come file ZIP (non serve Git, è il modo più semplice)**
+1. Apri https://github.com/vislogica/Fortino nel browser.
+2. Clicca il pulsante verde **Code**, poi **Download ZIP**.
+3. Trova `Fortino-main.zip` nella cartella *Download*, tasto destro › **Estrai tutto…** e scegli una
+   cartella con un percorso corto, per esempio `C:\Fortino`. I percorsi corti evitano problemi con i nomi
+   di file lunghi in Windows.
+4. Dentro trovi `Fortino.sln`: è il file da aprire (vedi *Come si avvia*).
+
+Con lo ZIP hai una copia del progetto com'è oggi. Per avere una versione più nuova, in futuro, scarica di
+nuovo lo ZIP.
+
+**B. Con Git (se lo usi già)**
+```
+git clone https://github.com/vislogica/Fortino.git
+```
+Crea la cartella `Fortino`; in seguito, `git pull` dentro la cartella scarica gli aggiornamenti.
+
+**C. Da Visual Studio**
+Nella finestra iniziale scegli **Clona un repository**, incolla `https://github.com/vislogica/Fortino.git`
+e premi **Clona**.
 
 ## Cosa serve
 - .NET SDK 10
