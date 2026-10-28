@@ -10,7 +10,7 @@ public sealed class FrozenDataCase : Ch07Case
     public override string Summary =>
         "Entri come l'amministratrice Anna Rossi. Il documento di una fattura emessa legge IBAN e cliente dai dati di oggi: chi cambia l'IBAN aziendale cambia anche le fatture vecchie.";
     public override string BookReference => "capitolo 7, caso 7.2";
-    public override string Owasp => "OWASP A06:2025 Insecure Design · A08:2025 Integrity Failures";
+    public override string Owasp => "OWASP A06:2025 Insecure Design · A08:2025 Software or Data Integrity Failures";
     public override CodeLocation VulnerableCode => new("Ch07.BusinessLogic/Vulnerable/InvoiceService.cs", "documento-vulnerabile");
     public override CodeLocation SecureCode => new("Ch07.BusinessLogic/Secure/InvoiceService.cs", "documento-corretto");
 

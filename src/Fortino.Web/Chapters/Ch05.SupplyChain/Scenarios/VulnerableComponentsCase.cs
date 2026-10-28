@@ -12,7 +12,7 @@ public sealed class VulnerableComponentsCase : LabCaseBase
     public override string Summary =>
         "Il rischio non è un difetto del tuo codice, ma un pacchetto che usi con una vulnerabilità nota. Si scopre con un comando e si evita tenendo tutto aggiornato.";
     public override string BookReference => "capitolo 5";
-    public override string Owasp => "OWASP A06:2025 Vulnerable and Outdated Components";
+    public override string Owasp => "OWASP A03:2025 Software Supply Chain Failures";
     public override string Iso27001 => "8.8, 5.21";
     public override string TestClass => "—";
     public override CodeLocation VulnerableCode => new("Ch05.SupplyChain/Vulnerable/NotIncludedYet.cs", "componenti-vulnerabili-da-integrare");
